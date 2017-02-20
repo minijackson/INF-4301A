@@ -1,0 +1,7 @@
+[package]
+name = "inf_4301a"
+version = "0.1.0"
+authors = ["Minijackson <minijackson@riseup.net>"]
+
+[dependencies]
+nom = "2.1.0"
