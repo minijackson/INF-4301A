@@ -71,15 +71,27 @@ named!(expression<Expr>,
        )
 );
 
-fn consume(tree: Expr) -> i32 {
+fn consume(tree: &Expr) -> i32 {
     use Expr::*;
 
     match tree {
-        Add(box lhs, box rhs) => consume(lhs) + consume(rhs),
-        Sub(box lhs, box rhs) => consume(lhs) - consume(rhs),
-        Mul(box lhs, box rhs) => consume(lhs) * consume(rhs),
-        Div(box lhs, box rhs) => consume(lhs) / consume(rhs),
-        Num(value) => value,
+        &Add(box ref lhs, box ref rhs) => consume(&lhs) + consume(&rhs),
+        &Sub(box ref lhs, box ref rhs) => consume(&lhs) - consume(&rhs),
+        &Mul(box ref lhs, box ref rhs) => consume(&lhs) * consume(&rhs),
+        &Div(box ref lhs, box ref rhs) => consume(&lhs) / consume(&rhs),
+        &Num(value) => value,
+    }
+}
+
+fn reverse_polish(tree: &Expr) -> String {
+    use Expr::*;
+
+    match tree {
+        &Add(box ref lhs, box ref rhs) => format!("{} {} +", reverse_polish(&lhs), reverse_polish(&rhs)),
+        &Sub(box ref lhs, box ref rhs) => format!("{} {} -", reverse_polish(&lhs), reverse_polish(&rhs)),
+        &Mul(box ref lhs, box ref rhs) => format!("{} {} *", reverse_polish(&lhs), reverse_polish(&rhs)),
+        &Div(box ref lhs, box ref rhs) => format!("{} {} /", reverse_polish(&lhs), reverse_polish(&rhs)),
+        &Num(value) => value.to_string(),
     }
 }
 
@@ -87,7 +99,8 @@ fn main() {
     let exp = expression(&b"42 +3 * 7- 1/1"[..]);
     println!("Expression: {:?}", exp);
     if let IResult::Done(&[], exp) = exp {
-        println!("Value: {}", consume(exp));
+        println!("Value: {}", consume(&exp));
+        println!("RPN: {}", reverse_polish(&exp));
     } else {
         println!("Error while parsing: {:?}", exp);
     }
