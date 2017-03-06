@@ -4,16 +4,21 @@ use ast::{Expr,OpCode};
 
 grammar;
 
-pub Expression: Box<Expr> = {
-    <l:Expression> "+" <r:Term> => Box::new(Expr::BinaryOp(l, r, OpCode::Add)),
-    <l:Expression> "-" <r:Term> => Box::new(Expr::BinaryOp(l, r, OpCode::Sub)),
-    Term
+Tier<Op, NextTier>: Box<Expr> = {
+    <lhs:Tier<Op, NextTier>> <op:Op> <rhs:NextTier> => Box::new(Expr::BinaryOp(lhs, rhs, op)),
+    NextTier
 };
 
-pub Term: Box<Expr> = {
-    <l:Term> "*" <r:Factor> => Box::new(Expr::BinaryOp(l, r, OpCode::Mul)),
-    <l:Term> "/" <r:Factor> => Box::new(Expr::BinaryOp(l, r, OpCode::Div)),
-    Factor
+pub Expression = Tier<ExprOp, Term>;
+ExprOp: OpCode = {
+    "+" => OpCode::Add,
+    "-" => OpCode::Sub,
+};
+
+pub Term = Tier<TermOp, Factor>;
+TermOp: OpCode = {
+    "*" => OpCode::Mul,
+    "/" => OpCode::Div,
 };
 
 pub Factor: Box<Expr> = { <Num>, "(" <Expression> ")" };
