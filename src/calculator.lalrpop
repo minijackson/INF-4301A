@@ -1,0 +1,21 @@
+use std::str::FromStr;
+
+use ast::{Expr,OpCode};
+
+grammar;
+
+pub Expression: Box<Expr> = {
+    <l:Expression> "+" <r:Term> => Box::new(Expr::BinaryOp(l, r, OpCode::Add)),
+    <l:Expression> "-" <r:Term> => Box::new(Expr::BinaryOp(l, r, OpCode::Sub)),
+    Term
+};
+
+pub Term: Box<Expr> = {
+    <l:Term> "*" <r:Factor> => Box::new(Expr::BinaryOp(l, r, OpCode::Mul)),
+    <l:Term> "/" <r:Factor> => Box::new(Expr::BinaryOp(l, r, OpCode::Div)),
+    Factor
+};
+
+pub Factor: Box<Expr> = { <Num>, "(" <Expression> ")" };
+
+Num: Box<Expr> = r"[0-9]+" => Box::new(Expr::Num(i32::from_str(<>).unwrap()));
