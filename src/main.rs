@@ -9,16 +9,16 @@ pub mod calculator;
 pub mod ast;
 use ast::{Expr,OpCode};
 
-fn consume(tree: &Expr) -> i32 {
+fn evaluate(tree: &Expr) -> i32 {
     use Expr::*;
     use OpCode::*;
 
     match tree {
         &BinaryOp(box ref lhs, box ref rhs, ref op) => match op {
-            &Add => consume(lhs) + consume(rhs),
-            &Sub => consume(lhs) - consume(rhs),
-            &Mul => consume(lhs) * consume(rhs),
-            &Div => consume(lhs) / consume(rhs),
+            &Add => evaluate(lhs) + evaluate(rhs),
+            &Sub => evaluate(lhs) - evaluate(rhs),
+            &Mul => evaluate(lhs) * evaluate(rhs),
+            &Div => evaluate(lhs) / evaluate(rhs),
         },
         &Num(value) => value,
     }
@@ -68,7 +68,7 @@ fn main() {
                 rl.add_history_entry(&line);
                 let exp = calculator::parse_Expression(line.as_str()).unwrap();
                 println!("Result: {:?}", exp);
-                println!("Value: {}", consume(&exp));
+                println!("Value: {}", evaluate(&exp));
                 println!("RPN: {}", reverse_polish(&exp));
                 println!("Lisp: {}", lisp(&exp));
             },
