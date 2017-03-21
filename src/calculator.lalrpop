@@ -21,6 +21,25 @@ TermOp: OpCode = {
     "/" => OpCode::Div,
 };
 
-pub Factor: Box<Expr> = { <Num>, "(" <Expression> ")" };
+pub FunctionCall: Box<Expr> = {
+    <name:Identifier> "(" <args:Args> ")" => Box::new(Expr::Function(name, args))
+};
+
+pub Factor: Box<Expr> = { <Num>, "(" <Expression> ")", <FunctionCall> };
 
 Num: Box<Expr> = r"[0-9]+" => Box::new(Expr::Num(i32::from_str(<>).unwrap()));
+
+Identifier: String = r"[[:alpha:]][[:alnum:]]*" => String::from_str(<>).unwrap();
+
+Comma<T>: Vec<T> = {
+    <v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+};
+
+Args = Comma<Expression>;

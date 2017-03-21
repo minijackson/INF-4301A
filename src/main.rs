@@ -7,19 +7,29 @@ use rustyline::Editor;
 pub mod calculator;
 
 pub mod ast;
-use ast::{Expr,OpCode};
+use ast::{Expr, OpCode};
 
 fn evaluate(tree: &Expr) -> i32 {
     use Expr::*;
     use OpCode::*;
 
     match tree {
-        &BinaryOp(box ref lhs, box ref rhs, ref op) => match op {
-            &Add => evaluate(lhs) + evaluate(rhs),
-            &Sub => evaluate(lhs) - evaluate(rhs),
-            &Mul => evaluate(lhs) * evaluate(rhs),
-            &Div => evaluate(lhs) / evaluate(rhs),
-        },
+        &Function(ref name, ref args) => {
+            if name == "print" && args.len() == 1 {
+                println!("=> {}", evaluate(&args[0]));
+                return 0;
+            } else {
+                panic!("Unknown function: {}/{}", name, args.len());
+            }
+        }
+        &BinaryOp(box ref lhs, box ref rhs, ref op) => {
+            match op {
+                &Add => evaluate(lhs) + evaluate(rhs),
+                &Sub => evaluate(lhs) - evaluate(rhs),
+                &Mul => evaluate(lhs) * evaluate(rhs),
+                &Div => evaluate(lhs) / evaluate(rhs),
+            }
+        }
         &Num(value) => value,
     }
 }
@@ -29,12 +39,21 @@ fn reverse_polish(tree: &Expr) -> String {
     use OpCode::*;
 
     match tree {
-        &BinaryOp(box ref lhs, box ref rhs, ref op) => match op {
-            &Add => format!("{} {} +", reverse_polish(&lhs), reverse_polish(&rhs)),
-            &Sub => format!("{} {} -", reverse_polish(&lhs), reverse_polish(&rhs)),
-            &Mul => format!("{} {} *", reverse_polish(&lhs), reverse_polish(&rhs)),
-            &Div => format!("{} {} /", reverse_polish(&lhs), reverse_polish(&rhs)),
-        },
+        &Function(ref name, ref args) => {
+            return format!("{}{}",
+                           args.iter()
+                               .fold(String::new(),
+                                     |s, arg| format!("{}{} ", s, reverse_polish(arg))),
+                           name);
+        }
+        &BinaryOp(box ref lhs, box ref rhs, ref op) => {
+            match op {
+                &Add => format!("{} {} +", reverse_polish(&lhs), reverse_polish(&rhs)),
+                &Sub => format!("{} {} -", reverse_polish(&lhs), reverse_polish(&rhs)),
+                &Mul => format!("{} {} *", reverse_polish(&lhs), reverse_polish(&rhs)),
+                &Div => format!("{} {} /", reverse_polish(&lhs), reverse_polish(&rhs)),
+            }
+        }
         &Num(value) => value.to_string(),
     }
 }
@@ -44,12 +63,21 @@ fn lisp(tree: &Expr) -> String {
     use OpCode::*;
 
     match tree {
-        &BinaryOp(box ref lhs, box ref rhs, ref op) => match op {
-            &Add => format!("(+ {} {})", lisp(&lhs), lisp(&rhs)),
-            &Sub => format!("(- {} {})", lisp(&lhs), lisp(&rhs)),
-            &Mul => format!("(* {} {})", lisp(&lhs), lisp(&rhs)),
-            &Div => format!("(/ {} {})", lisp(&lhs), lisp(&rhs)),
-        },
+        &Function(ref name, ref args) => {
+            return format!("({}{})",
+                           name,
+                           args.iter()
+                               .fold(String::new(),
+                                     |s, arg| format!("{} ({})", s, reverse_polish(arg))));
+        }
+        &BinaryOp(box ref lhs, box ref rhs, ref op) => {
+            match op {
+                &Add => format!("(+ {} {})", lisp(&lhs), lisp(&rhs)),
+                &Sub => format!("(- {} {})", lisp(&lhs), lisp(&rhs)),
+                &Mul => format!("(* {} {})", lisp(&lhs), lisp(&rhs)),
+                &Div => format!("(/ {} {})", lisp(&lhs), lisp(&rhs)),
+            }
+        }
         &Num(value) => value.to_string(),
     }
 }
@@ -68,15 +96,15 @@ fn main() {
                 rl.add_history_entry(&line);
                 let exp = calculator::parse_Expression(line.as_str()).unwrap();
                 println!("Result: {:?}", exp);
-                println!("Value: {}", evaluate(&exp));
                 println!("RPN: {}", reverse_polish(&exp));
                 println!("Lisp: {}", lisp(&exp));
-            },
+                println!("Value: {}", evaluate(&exp));
+            }
             Err(ReadlineError::Interrupted) => continue,
             Err(ReadlineError::Eof) => break,
             Err(err) => {
                 println!("Error: {:?}", err);
-                break
+                break;
             }
         }
         rl.save_history("history.txt").unwrap();
