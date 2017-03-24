@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ast::{Exprs,Expr,OpCode};
+use ast::{Exprs,Expr,BinaryOpCode,UnaryOpCode};
 
 grammar;
 
@@ -28,19 +28,24 @@ Tier<Op, NextTier>: Box<Expr> = {
     NextTier
 };
 
-pub Tier1 = Tier<ExprOp, Tier2>;
-ExprOp: OpCode = {
-    "+" => OpCode::Add,
-    "-" => OpCode::Sub,
+Tier1 = Tier<ExprOp, Tier2>;
+ExprOp: BinaryOpCode = {
+    "+" => BinaryOpCode::Add,
+    "-" => BinaryOpCode::Sub,
 };
 
-pub Tier2 = Tier<TermOp, Factor>;
-TermOp: OpCode = {
-    "*" => OpCode::Mul,
-    "/" => OpCode::Div,
+Tier2 = Tier<TermOp, UnaryOpExp>;
+TermOp: BinaryOpCode = {
+    "*" => BinaryOpCode::Mul,
+    "/" => BinaryOpCode::Div,
 };
 
-pub FunctionCall: Box<Expr> = {
+UnaryOpExp: Box<Expr> = {
+    <sign:UnaryOp> <value:Factor> => Box::new(Expr::UnaryOp(value, sign)),
+    Factor
+};
+
+FunctionCall: Box<Expr> = {
     <name:Identifier> "(" <args:Args> ")" => Box::new(Expr::Function(name, args))
 };
 
@@ -64,3 +69,9 @@ Comma<T>: Vec<T> = {
 };
 
 Args = Comma<Expression>;
+
+UnaryOp: UnaryOpCode = {
+    "" => UnaryOpCode::Plus,
+    "+" => UnaryOpCode::Plus,
+    "-" => UnaryOpCode::Minus
+};

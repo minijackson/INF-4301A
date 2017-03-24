@@ -7,7 +7,7 @@ use rustyline::Editor;
 pub mod calculator;
 
 pub mod ast;
-use ast::{Expr, OpCode};
+//use ast::{Expr, BinaryOpCode, UnaryOpCode};
 
 pub mod processing;
 use processing::{Evaluable,reverse_polish,lisp};
