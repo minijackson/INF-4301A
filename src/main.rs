@@ -9,78 +9,10 @@ pub mod calculator;
 pub mod ast;
 use ast::{Expr, OpCode};
 
-fn evaluate(tree: &Expr) -> i32 {
-    use Expr::*;
-    use OpCode::*;
+pub mod processing;
+use processing::{Evaluable,reverse_polish,lisp};
 
-    match tree {
-        &Function(ref name, ref args) => {
-            if name == "print" && args.len() == 1 {
-                println!("=> {}", evaluate(&args[0]));
-                return 0;
-            } else {
-                panic!("Unknown function: {}/{}", name, args.len());
-            }
-        }
-        &BinaryOp(box ref lhs, box ref rhs, ref op) => {
-            match op {
-                &Add => evaluate(lhs) + evaluate(rhs),
-                &Sub => evaluate(lhs) - evaluate(rhs),
-                &Mul => evaluate(lhs) * evaluate(rhs),
-                &Div => evaluate(lhs) / evaluate(rhs),
-            }
-        }
-        &Num(value) => value,
-    }
-}
-
-fn reverse_polish(tree: &Expr) -> String {
-    use Expr::*;
-    use OpCode::*;
-
-    match tree {
-        &Function(ref name, ref args) => {
-            return format!("{}{}",
-                           args.iter()
-                               .fold(String::new(),
-                                     |s, arg| format!("{}{} ", s, reverse_polish(arg))),
-                           name);
-        }
-        &BinaryOp(box ref lhs, box ref rhs, ref op) => {
-            match op {
-                &Add => format!("{} {} +", reverse_polish(&lhs), reverse_polish(&rhs)),
-                &Sub => format!("{} {} -", reverse_polish(&lhs), reverse_polish(&rhs)),
-                &Mul => format!("{} {} *", reverse_polish(&lhs), reverse_polish(&rhs)),
-                &Div => format!("{} {} /", reverse_polish(&lhs), reverse_polish(&rhs)),
-            }
-        }
-        &Num(value) => value.to_string(),
-    }
-}
-
-fn lisp(tree: &Expr) -> String {
-    use Expr::*;
-    use OpCode::*;
-
-    match tree {
-        &Function(ref name, ref args) => {
-            return format!("({}{})",
-                           name,
-                           args.iter()
-                               .fold(String::new(),
-                                     |s, arg| format!("{} ({})", s, reverse_polish(arg))));
-        }
-        &BinaryOp(box ref lhs, box ref rhs, ref op) => {
-            match op {
-                &Add => format!("(+ {} {})", lisp(&lhs), lisp(&rhs)),
-                &Sub => format!("(- {} {})", lisp(&lhs), lisp(&rhs)),
-                &Mul => format!("(* {} {})", lisp(&lhs), lisp(&rhs)),
-                &Div => format!("(/ {} {})", lisp(&lhs), lisp(&rhs)),
-            }
-        }
-        &Num(value) => value.to_string(),
-    }
-}
+use std::collections::HashMap;
 
 fn main() {
     let mut rl = Editor::<()>::new();
@@ -88,17 +20,19 @@ fn main() {
         println!("No previous history.");
     }
 
+    let mut bindings = HashMap::new();
+
     loop {
         let readline = rl.readline("> ");
 
         match readline {
             Ok(line) => {
                 rl.add_history_entry(&line);
-                let exp = calculator::parse_Expression(line.as_str()).unwrap();
+                let exp = calculator::parse_Expressions(line.as_str()).unwrap();
                 println!("Result: {:?}", exp);
-                println!("RPN: {}", reverse_polish(&exp));
-                println!("Lisp: {}", lisp(&exp));
-                println!("Value: {}", evaluate(&exp));
+                //println!("RPN: {}", reverse_polish(&exp));
+                //println!("Lisp: {}", lisp(&exp));
+                println!("Value: {}", &exp.evaluate(&mut bindings));
             }
             Err(ReadlineError::Interrupted) => continue,
             Err(ReadlineError::Eof) => break,

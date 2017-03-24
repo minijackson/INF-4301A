@@ -1,21 +1,40 @@
 use std::str::FromStr;
 
-use ast::{Expr,OpCode};
+use ast::{Exprs,Expr,OpCode};
 
 grammar;
+
+pub Expressions: Exprs = {
+    <v:(<Expression> r";|\n")*> <e:Expression?> => match e {
+        None => Exprs{exprs: v},
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            Exprs{exprs: v}
+        }
+    }
+};
+
+pub Expression: Box<Expr> = {
+    Assignment, Tier1
+};
+
+Assignment: Box<Expr> = {
+    <name:Identifier> "=" <exp:Expression> => Box::new(Expr::Assignment(name, exp))
+};
 
 Tier<Op, NextTier>: Box<Expr> = {
     <lhs:Tier<Op, NextTier>> <op:Op> <rhs:NextTier> => Box::new(Expr::BinaryOp(lhs, rhs, op)),
     NextTier
 };
 
-pub Expression = Tier<ExprOp, Term>;
+pub Tier1 = Tier<ExprOp, Tier2>;
 ExprOp: OpCode = {
     "+" => OpCode::Add,
     "-" => OpCode::Sub,
 };
 
-pub Term = Tier<TermOp, Factor>;
+pub Tier2 = Tier<TermOp, Factor>;
 TermOp: OpCode = {
     "*" => OpCode::Mul,
     "/" => OpCode::Div,
@@ -25,7 +44,9 @@ pub FunctionCall: Box<Expr> = {
     <name:Identifier> "(" <args:Args> ")" => Box::new(Expr::Function(name, args))
 };
 
-pub Factor: Box<Expr> = { <Num>, "(" <Expression> ")", <FunctionCall> };
+pub Factor: Box<Expr> = { <Variable>, <Num>, "(" <Expression> ")", <FunctionCall> };
+
+Variable: Box<Expr> = <Identifier> => Box::new(Expr::Variable(<>));
 
 Num: Box<Expr> = r"[0-9]+" => Box::new(Expr::Num(i32::from_str(<>).unwrap()));
 
