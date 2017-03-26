@@ -10,7 +10,7 @@ pub mod ast;
 //use ast::{Expr, BinaryOpCode, UnaryOpCode};
 
 pub mod processing;
-use processing::{Evaluable,Printer,lisp};
+use processing::{Evaluate,Print,lisp};
 
 use std::collections::HashMap;
 
@@ -28,11 +28,11 @@ fn main() {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(&line);
-                let exp = calculator::parse_Expressions(line.as_str()).unwrap();
-                println!("Result: {:?}", exp);
-                println!("RPN: {}", &exp.reverse_polish());
+                let exps = calculator::parse_Expressions(line.as_str()).unwrap();
+                println!("Result: {:?}", exps);
+                println!("===== RPN =====\n{}===============", &exps.reverse_polish());
                 //println!("Lisp: {}", &exp.lisp());
-                println!("Value: {}", &exp.evaluate(&mut bindings));
+                println!("Value: {}", &exps.evaluate(&mut bindings));
             }
             Err(ReadlineError::Interrupted) => continue,
             Err(ReadlineError::Eof) => break,
