@@ -1,6 +1,3 @@
-
-use calculator::*;
-
 use ast::*;
 
 use std::collections::HashMap;
@@ -148,11 +145,12 @@ pub fn lisp(tree: &Expr) -> String {
 mod test {
     use calculator;
     use super::Print;
-#[test]
-    fn it_works() {
+
+    #[test]
+    fn reverse_polish() {
         let exp_str = "2+2+2";
-        let expected = "2 2 + 2 +\n";
-        let exp = calculator::parse_Expressions(exp_str).unwrap();
+        let expected = "2 2 + 2 +";
+        let exp = calculator::parse_Expression(exp_str).unwrap();
         let result = &exp.reverse_polish();
         assert_eq!(expected,result);
     }
