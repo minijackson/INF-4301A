@@ -5,11 +5,9 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
 pub mod calculator;
-
 pub mod ast;
-//use ast::{Expr, BinaryOpCode, UnaryOpCode};
-
 pub mod processing;
+
 use processing::{Evaluate,Print,lisp};
 
 use std::collections::HashMap;

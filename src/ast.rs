@@ -1,9 +1,9 @@
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq)]
 pub struct Exprs {
     pub exprs: Vec<Box<Expr>>
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq)]
 pub enum Expr {
     Assignment(String, Box<Expr>),
     Function(String, Vec<Box<Expr>>),
@@ -13,12 +13,12 @@ pub enum Expr {
     Num(i32),
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq)]
 pub enum BinaryOpCode {
     Add, Sub, Mul, Div,
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq)]
 pub enum UnaryOpCode {
     Plus, Minus
 }
