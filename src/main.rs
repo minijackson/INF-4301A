@@ -1,6 +1,9 @@
 #![feature(box_syntax,box_patterns,slice_patterns)]
 
 extern crate rustyline;
+#[macro_use]
+extern crate itertools;
+
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
@@ -28,7 +31,7 @@ fn main() {
                 rl.add_history_entry(&line);
                 let exps = calculator::parse_Expressions(line.as_str()).unwrap();
                 println!("Result: {:?}", exps);
-                println!("===== RPN =====\n{}===============", &exps.reverse_polish());
+                println!("===== Pretty printing =====\n{}\n===========================", &exps.pretty_print(0));
                 //println!("Lisp: {}", &exp.lisp());
                 println!("Value: {}", &exps.evaluate(&mut bindings));
             }

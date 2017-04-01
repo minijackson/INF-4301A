@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use ast::*;
 
 use std::collections::HashMap;
@@ -7,7 +9,7 @@ pub trait Evaluate {
 }
 
 pub trait Print {
-    fn reverse_polish(&self) -> String;
+    fn pretty_print(&self, indent: usize) -> String;
 }
 
 impl Evaluate for Expr {
@@ -73,38 +75,42 @@ impl Evaluate for Exprs {
 }
 
 impl Print for Expr {
-    fn reverse_polish(&self) -> String {
+    fn pretty_print(&self, indent: usize) -> String {
         use ast::Expr::*;
         use ast::BinaryOpCode::*;
         use ast::UnaryOpCode::*;
 
+        let strws = " ".repeat(indent);
+        let ws = strws.as_str();
+
         match self {
             &Grouping(ref exprs) => {
-                format!("(\n{})", exprs.reverse_polish())
+                format!("(\n{}\n{})", exprs.pretty_print(indent + 2), ws)
             }
-            &Assignment(ref name, box ref exp) => format!("{} {} =", name, exp.reverse_polish()),
+            &Assignment(ref name, box ref exp) => format!("{} = {}", name, exp.pretty_print(indent)),
             &Function(ref name, ref args) => {
-                format!("{}{}",
+                format!("{}({})",
+                        name,
                         args.iter()
-                            .fold(String::new(),
-                                  |s, arg| format!("{}{} ", s, arg.reverse_polish())),
-                        name)
+                            .map(|exp| exp.pretty_print(indent))
+                            .join(", ")
+                        )
             }
             &If(box ref cond, ref true_branch, ref false_branch) => {
-                format!("if {} then {} else {}", cond.reverse_polish(), true_branch.reverse_polish(), false_branch.reverse_polish())
+                format!("if {} then {} else {}", cond.pretty_print(indent), true_branch.pretty_print(indent), false_branch.pretty_print(indent))
             }
             &BinaryOp(box ref lhs, box ref rhs, ref op) => {
                 match op {
-                    &Add => format!("{} {} +", &lhs.reverse_polish(), &rhs.reverse_polish()),
-                    &Sub => format!("{} {} -", &lhs.reverse_polish(), &rhs.reverse_polish()),
-                    &Mul => format!("{} {} *", &lhs.reverse_polish(), &rhs.reverse_polish()),
-                    &Div => format!("{} {} /", &lhs.reverse_polish(), &rhs.reverse_polish()),
+                    &Add => format!("{} + {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+                    &Sub => format!("{} - {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+                    &Mul => format!("{} * {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+                    &Div => format!("{} / {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
                 }
             }
             &UnaryOp(box ref exp, ref op) => {
                 match op {
-                    &Plus => format!("{} ++", &exp.reverse_polish()),
-                    &Minus => format!("{} --", &exp.reverse_polish()),
+                    &Plus => format!("+{}", &exp.pretty_print(indent)),
+                    &Minus => format!("-{}", &exp.pretty_print(indent)),
                 }
             }
             &Variable(ref name) => name.clone(),
@@ -114,13 +120,24 @@ impl Print for Expr {
 }
 
 impl Print for Exprs {
-    fn reverse_polish(&self) -> String {
+    fn pretty_print(&self, indent: usize) -> String {
         let mut result = String::new();
-        for expr in self.exprs.iter() {
-            result += expr.reverse_polish().as_str();
-            result += "\n";
-        }
-        result.to_string()
+
+        let strws = " ".repeat(indent);
+        let ws    = strws.as_str();
+
+        //for expr in self.exprs.iter() {
+            //result += ws;
+            //result += expr.pretty_print(indent).as_str();
+            //result += ",\n";
+        //}
+
+        self.exprs.iter()
+            .map(|exp| exp.pretty_print(indent))
+            .map(|disp| format!("{}{}", ws, disp))
+            .join(",\n")
+
+        //result.to_string()
     }
 }
 
@@ -130,11 +147,11 @@ mod test {
     use super::Print;
 
     #[test]
-    fn reverse_polish() {
+    fn pretty_print() {
         let exp_str = "2+2+2";
-        let expected = "2 2 + 2 +";
+        let expected = "2 + 2 + 2";
         let exp = calculator::parse_Expression(exp_str).unwrap();
-        let result = &exp.reverse_polish();
+        let result = &exp.pretty_print(0);
         assert_eq!(expected,result);
     }
 }
