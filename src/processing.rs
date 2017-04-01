@@ -85,7 +85,7 @@ impl Print for Expr {
 
         match self {
             &Grouping(ref exprs) => {
-                format!("(\n{}\n{})", exprs.pretty_print(indent + 2), ws)
+                format!("(\n{}{})", exprs.pretty_print(indent + 2), ws)
             }
             &Assignment(ref name, box ref exp) => format!("{} = {}", name, exp.pretty_print(indent)),
             &Function(ref name, ref args) => {
@@ -121,23 +121,13 @@ impl Print for Expr {
 
 impl Print for Exprs {
     fn pretty_print(&self, indent: usize) -> String {
-        let mut result = String::new();
-
         let strws = " ".repeat(indent);
         let ws    = strws.as_str();
-
-        //for expr in self.exprs.iter() {
-            //result += ws;
-            //result += expr.pretty_print(indent).as_str();
-            //result += ",\n";
-        //}
 
         self.exprs.iter()
             .map(|exp| exp.pretty_print(indent))
             .map(|disp| format!("{}{}", ws, disp))
-            .join(",\n")
-
-        //result.to_string()
+            .join(",\n") + "\n"
     }
 }
 

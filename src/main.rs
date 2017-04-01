@@ -31,7 +31,7 @@ fn main() {
                 rl.add_history_entry(&line);
                 let exps = calculator::parse_Expressions(line.as_str()).unwrap();
                 println!("Result: {:?}", exps);
-                println!("===== Pretty printing =====\n{}\n===========================", &exps.pretty_print(0));
+                println!("===== Pretty printing =====\n{}===========================", &exps.pretty_print(0));
                 //println!("Lisp: {}", &exp.lisp());
                 println!("Value: {}", &exps.evaluate(&mut bindings));
             }
