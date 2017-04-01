@@ -5,8 +5,10 @@ pub struct Exprs {
 
 #[derive(Debug,PartialEq,Eq)]
 pub enum Expr {
+    Grouping(Exprs),
     Assignment(String, Box<Expr>),
     Function(String, Vec<Box<Expr>>),
+    If(Box<Expr>, Box<Expr>, Box<Expr>),
     BinaryOp(Box<Expr>, Box<Expr>, BinaryOpCode),
     UnaryOp(Box<Expr>, UnaryOpCode),
     Variable(String),

@@ -4,59 +4,6 @@ use ast::{Exprs,Expr,BinaryOpCode,UnaryOpCode};
 
 grammar;
 
-pub Expressions: Exprs = {
-    <v:(<Expression> r";|\n")*> <e:Expression?> => match e {
-        None => Exprs{exprs: v},
-        Some(e) => {
-            let mut v = v;
-            v.push(e);
-            Exprs{exprs: v}
-        }
-    }
-};
-
-pub Expression: Box<Expr> = {
-    Assignment, Tier1
-};
-
-Assignment: Box<Expr> = {
-    <name:Identifier> "=" <exp:Expression> => Box::new(Expr::Assignment(name, exp))
-};
-
-Tier<Op, NextTier>: Box<Expr> = {
-    <lhs:Tier<Op, NextTier>> <op:Op> <rhs:NextTier> => Box::new(Expr::BinaryOp(lhs, rhs, op)),
-    NextTier
-};
-
-Tier1 = Tier<ExprOp, Tier2>;
-ExprOp: BinaryOpCode = {
-    "+" => BinaryOpCode::Add,
-    "-" => BinaryOpCode::Sub,
-};
-
-Tier2 = Tier<TermOp, UnaryOpExp>;
-TermOp: BinaryOpCode = {
-    "*" => BinaryOpCode::Mul,
-    "/" => BinaryOpCode::Div,
-};
-
-UnaryOpExp: Box<Expr> = {
-    <sign:UnaryOp> <value:Factor> => Box::new(Expr::UnaryOp(value, sign)),
-    Factor
-};
-
-FunctionCall: Box<Expr> = {
-    <name:Identifier> "(" <args:Args> ")" => Box::new(Expr::Function(name, args))
-};
-
-pub Factor: Box<Expr> = { <Variable>, <Num>, "(" <Expression> ")", <FunctionCall> };
-
-Variable: Box<Expr> = <Identifier> => Box::new(Expr::Variable(<>));
-
-Num: Box<Expr> = r"[0-9]+" => Box::new(Expr::Num(i32::from_str(<>).unwrap()));
-
-Identifier: String = r"[[:alpha:]][[:alnum:]]*" => String::from_str(<>).unwrap();
-
 Comma<T>: Vec<T> = {
     <v:(<T> ",")*> <e:T?> => match e {
         None => v,
@@ -68,10 +15,84 @@ Comma<T>: Vec<T> = {
     }
 };
 
-Args = Comma<Expression>;
+pub Expressions: Exprs = {
+    <Comma<Expression>> => Exprs { exprs: <> }
+};
+
+pub Expression: Box<Expr> = {
+    Tier0
+};
+
+//==================
+//== Control Flow ==
+//==================
+
+Tier0: Box<Expr> = {
+    IfExp,
+    Assignment,
+    Tier1
+};
+
+IfExp: Box<Expr> = {
+    "if" <cond:Expression> "then" <true_branch:Expression> "else" <false_branch:Expression>
+        => Box::new(Expr::If(cond, true_branch, false_branch))
+};
+
+Assignment: Box<Expr> = {
+    <name:Identifier> "=" <exp:Expression> => Box::new(Expr::Assignment(name, exp))
+};
+
+//===============
+//== Operators ==
+//===============
+
+BinOpTier<Op, NextTier>: Box<Expr> = {
+    <lhs:BinOpTier<Op, NextTier>> <op:Op> <rhs:NextTier> => Box::new(Expr::BinaryOp(lhs, rhs, op)),
+    NextTier
+};
+
+Tier1 = BinOpTier<ExprOp, Tier2>;
+ExprOp: BinaryOpCode = {
+    "+" => BinaryOpCode::Add,
+    "-" => BinaryOpCode::Sub,
+};
+
+Tier2 = BinOpTier<TermOp, UnaryOpExp>;
+TermOp: BinaryOpCode = {
+    "*" => BinaryOpCode::Mul,
+    "/" => BinaryOpCode::Div,
+};
+
+UnaryOpExp: Box<Expr> = {
+    <sign:UnaryOp> <value:Factor> => Box::new(Expr::UnaryOp(value, sign)),
+    Factor
+};
 
 UnaryOp: UnaryOpCode = {
     "" => UnaryOpCode::Plus,
     "+" => UnaryOpCode::Plus,
     "-" => UnaryOpCode::Minus
 };
+
+//==========
+//== Rest ==
+//==========
+
+FunctionCall: Box<Expr> = {
+    <name:Identifier> "(" <args:Args> ")" => Box::new(Expr::Function(name, args))
+};
+
+Args = Comma<Expression>;
+
+pub Factor: Box<Expr> = {
+    <Variable>,
+    <Num>,
+    "(" <Expressions> ")" => Box::new(Expr::Grouping(<>)),
+    <FunctionCall>
+};
+
+Variable: Box<Expr> = <Identifier> => Box::new(Expr::Variable(<>));
+
+Num: Box<Expr> = r"[0-9]+" => Box::new(Expr::Num(i32::from_str(<>).unwrap()));
+
+Identifier: String = r"[[:alpha:]][[:alnum:]]*" => String::from_str(<>).unwrap();

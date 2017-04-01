@@ -8,7 +8,7 @@ pub mod calculator;
 pub mod ast;
 pub mod processing;
 
-use processing::{Evaluate,Print,lisp};
+use processing::{Evaluate,Print};
 
 use std::collections::HashMap;
 

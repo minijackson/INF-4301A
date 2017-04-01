@@ -17,6 +17,9 @@ impl Evaluate for Expr {
         use ast::UnaryOpCode::*;
 
         match self {
+            &Grouping(ref exprs) => {
+                exprs.evaluate(bindings)
+            }
             &Assignment(ref name, box ref exp) => {
                 let value = exp.evaluate(bindings);
                 bindings.insert(name.clone(), value);
@@ -28,6 +31,13 @@ impl Evaluate for Expr {
                     return 0;
                 } else {
                     panic!("Unknown function: {}/{}", name, args.len());
+                }
+            }
+            &If(box ref cond, ref true_branch, ref false_branch) => {
+                if cond.evaluate(bindings) != 0 {
+                    true_branch.evaluate(bindings)
+                } else {
+                    false_branch.evaluate(bindings)
                 }
             }
             &BinaryOp(box ref lhs, box ref rhs, ref op) => {
@@ -69,6 +79,9 @@ impl Print for Expr {
         use ast::UnaryOpCode::*;
 
         match self {
+            &Grouping(ref exprs) => {
+                format!("(\n{})", exprs.reverse_polish())
+            }
             &Assignment(ref name, box ref exp) => format!("{} {} =", name, exp.reverse_polish()),
             &Function(ref name, ref args) => {
                 format!("{}{}",
@@ -76,6 +89,9 @@ impl Print for Expr {
                             .fold(String::new(),
                                   |s, arg| format!("{}{} ", s, arg.reverse_polish())),
                         name)
+            }
+            &If(box ref cond, ref true_branch, ref false_branch) => {
+                format!("if {} then {} else {}", cond.reverse_polish(), true_branch.reverse_polish(), false_branch.reverse_polish())
             }
             &BinaryOp(box ref lhs, box ref rhs, ref op) => {
                 match op {
@@ -105,39 +121,6 @@ impl Print for Exprs {
             result += "\n";
         }
         result.to_string()
-    }
-}
-
-pub fn lisp(tree: &Expr) -> String {
-    use ast::Expr::*;
-    use ast::BinaryOpCode::*;
-    use ast::UnaryOpCode::*;
-
-    match tree {
-        &Assignment(ref name, box ref exp) => format!("(let {} {})", name, lisp(exp)),
-        &Function(ref name, ref args) => {
-            format!("({}{})",
-                    name,
-                    args.iter()
-                        .fold(String::new(),
-                              |s, arg| format!("{} ({})", s, arg.reverse_polish())))
-        }
-        &BinaryOp(box ref lhs, box ref rhs, ref op) => {
-            match op {
-                &Add => format!("(+ {} {})", lisp(&lhs), lisp(&rhs)),
-                &Sub => format!("(- {} {})", lisp(&lhs), lisp(&rhs)),
-                &Mul => format!("(* {} {})", lisp(&lhs), lisp(&rhs)),
-                &Div => format!("(/ {} {})", lisp(&lhs), lisp(&rhs)),
-            }
-        }
-        &UnaryOp(box ref exp, ref op) => {
-            match op {
-                &Plus => format!("(++ {})", lisp(&exp)),
-                &Minus => format!("(-- {})", lisp(&exp)),
-            }
-        }
-        &Variable(ref name) => name.clone(),
-        &Num(value) => value.to_string(),
     }
 }
 
