@@ -22,10 +22,13 @@ impl Evaluate for Expr {
             &Grouping(ref exprs) => {
                 exprs.evaluate(bindings)
             }
-            &Assignment(ref name, box ref exp) => {
-                let value = exp.evaluate(bindings);
-                bindings.insert(name.clone(), value);
-                value
+            &Let(ref assignments, ref exprs) => {
+                for binding in assignments.iter() {
+                    let value = binding.value.evaluate(bindings);
+                    bindings.insert(binding.variable.clone(), value);
+                }
+
+                exprs.evaluate(bindings)
             }
             &Function(ref name, ref args) => {
                 if name == "print" && args.len() == 1 {
@@ -87,7 +90,17 @@ impl Print for Expr {
             &Grouping(ref exprs) => {
                 format!("(\n{}{})", exprs.pretty_print(indent + 2), ws)
             }
-            &Assignment(ref name, box ref exp) => format!("{} = {}", name, exp.pretty_print(indent)),
+            &Let(ref assignments, ref exprs) => {
+                format!("let\n{}{}in\n{}{}end",
+                        assignments.iter()
+                            .map(|binding| {
+                                binding.pretty_print(indent + 2)
+                            })
+                            .join("\n"),
+                        ws,
+                        exprs.pretty_print(indent + 2),
+                        ws)
+            }
             &Function(ref name, ref args) => {
                 format!("{}({})",
                         name,
@@ -128,6 +141,15 @@ impl Print for Exprs {
             .map(|exp| exp.pretty_print(indent))
             .map(|disp| format!("{}{}", ws, disp))
             .join(",\n") + "\n"
+    }
+}
+
+impl Print for Binding {
+    fn pretty_print(&self, indent: usize) -> String {
+        let strws = " ".repeat(indent);
+        let ws    = strws.as_str();
+
+        format!("{}var {} := {}\n", ws, self.variable, self.value.pretty_print(indent))
     }
 }
 

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ast::{Exprs,Expr,BinaryOpCode,UnaryOpCode};
+use ast::{Exprs,Expr,BinaryOpCode,UnaryOpCode,Binding};
 
 grammar;
 
@@ -29,7 +29,7 @@ pub Expression: Box<Expr> = {
 
 Tier0: Box<Expr> = {
     IfExp,
-    Assignment,
+    Let,
     Tier1
 };
 
@@ -38,8 +38,17 @@ IfExp: Box<Expr> = {
         => Box::new(Expr::If(cond, true_branch, false_branch))
 };
 
-Assignment: Box<Expr> = {
-    <name:Identifier> "=" <exp:Expression> => Box::new(Expr::Assignment(name, exp))
+Let: Box<Expr> = {
+    "let" <assignments:(<Assignment> "\n")*> <assignment:Assignment> "in" <exprs:Expressions> "end"
+        => {
+            let mut assignments = assignments;
+            assignments.push(assignment);
+            Box::new(Expr::Let(assignments, exprs))
+        }
+};
+
+Assignment: Binding = {
+    "var" <name:Identifier> ":=" <exp:Expression> => Binding{ variable: name, value: *exp }
 };
 
 //===============

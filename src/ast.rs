@@ -6,7 +6,7 @@ pub struct Exprs {
 #[derive(Debug,PartialEq,Eq)]
 pub enum Expr {
     Grouping(Exprs),
-    Assignment(String, Box<Expr>),
+    Let(Vec<Binding>, Exprs),
     Function(String, Vec<Box<Expr>>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     BinaryOp(Box<Expr>, Box<Expr>, BinaryOpCode),
@@ -23,4 +23,10 @@ pub enum BinaryOpCode {
 #[derive(Debug,PartialEq,Eq)]
 pub enum UnaryOpCode {
     Plus, Minus
+}
+
+#[derive(Debug,PartialEq,Eq)]
+pub struct Binding {
+    pub variable: String,
+    pub value: Expr
 }
