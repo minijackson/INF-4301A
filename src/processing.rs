@@ -96,7 +96,7 @@ impl Print for Expr {
                             .map(|binding| {
                                 binding.pretty_print(indent + 2)
                             })
-                            .join("\n"),
+                            .join(""),
                         ws,
                         exprs.pretty_print(indent + 2),
                         ws)

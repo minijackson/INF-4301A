@@ -1,0 +1,7 @@
+let
+  var foo := 1
+  var bar := 1 + foo
+  var baz := bar * bar
+in
+  foo, bar * baz
+end

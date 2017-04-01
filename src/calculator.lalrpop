@@ -39,7 +39,7 @@ IfExp: Box<Expr> = {
 };
 
 Let: Box<Expr> = {
-    "let" <assignments:(<Assignment> "\n")*> <assignment:Assignment> "in" <exprs:Expressions> "end"
+    "let" <assignments:(<Assignment>)*> <assignment:Assignment> "in" <exprs:Expressions> "end"
         => {
             let mut assignments = assignments;
             assignments.push(assignment);
