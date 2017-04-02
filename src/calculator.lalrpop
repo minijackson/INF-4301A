@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ast::{NaiveExprs,NaiveExpr,BinaryOpCode,UnaryOpCode,NaiveBinding};
+use ast::{Exprs,Expr,BinaryOpCode,UnaryOpCode,Binding};
 
 grammar;
 
@@ -15,11 +15,11 @@ Comma<T>: Vec<T> = {
     }
 };
 
-pub Expressions: NaiveExprs = {
-    <Comma<Expression>> => NaiveExprs { exprs: <> }
+pub Expressions: Exprs = {
+    <Comma<Expression>> => Exprs { exprs: <> }
 };
 
-pub Expression: Box<NaiveExpr> = {
+pub Expression: Box<Expr> = {
     Tier0
 };
 
@@ -27,36 +27,36 @@ pub Expression: Box<NaiveExpr> = {
 //== Control Flow ==
 //==================
 
-Tier0: Box<NaiveExpr> = {
+Tier0: Box<Expr> = {
     IfExp,
     Let,
     Tier1
 };
 
-IfExp: Box<NaiveExpr> = {
+IfExp: Box<Expr> = {
     "if" <cond:Expression> "then" <true_branch:Expression> "else" <false_branch:Expression>
-        => Box::new(NaiveExpr::If(cond, true_branch, false_branch))
+        => Box::new(Expr::If(cond, true_branch, false_branch))
 };
 
-Let: Box<NaiveExpr> = {
+Let: Box<Expr> = {
     "let" <assignments:(<Assignment>)*> <assignment:Assignment> "in" <exprs:Expressions> "end"
         => {
             let mut assignments = assignments;
             assignments.push(assignment);
-            Box::new(NaiveExpr::Let(assignments, exprs))
+            Box::new(Expr::Let(assignments, exprs))
         }
 };
 
-Assignment: NaiveBinding = {
-    "var" <name:Identifier> ":=" <exp:Expression> => NaiveBinding{ variable: name, value: *exp }
+Assignment: Binding = {
+    "var" <name:Identifier> ":=" <exp:Expression> => Binding{ variable: name, value: *exp }
 };
 
 //===============
 //== Operators ==
 //===============
 
-BinOpTier<Op, NextTier>: Box<NaiveExpr> = {
-    <lhs:BinOpTier<Op, NextTier>> <op:Op> <rhs:NextTier> => Box::new(NaiveExpr::BinaryOp(lhs, rhs, op)),
+BinOpTier<Op, NextTier>: Box<Expr> = {
+    <lhs:BinOpTier<Op, NextTier>> <op:Op> <rhs:NextTier> => Box::new(Expr::BinaryOp(lhs, rhs, op)),
     NextTier
 };
 
@@ -72,8 +72,8 @@ TermOp: BinaryOpCode = {
     "/" => BinaryOpCode::Div,
 };
 
-UnaryOpExp: Box<NaiveExpr> = {
-    <sign:UnaryOp> <value:Factor> => Box::new(NaiveExpr::UnaryOp(value, sign)),
+UnaryOpExp: Box<Expr> = {
+    <sign:UnaryOp> <value:Factor> => Box::new(Expr::UnaryOp(value, sign)),
     Factor
 };
 
@@ -87,21 +87,21 @@ UnaryOp: UnaryOpCode = {
 //== Rest ==
 //==========
 
-FunctionCall: Box<NaiveExpr> = {
-    <name:Identifier> "(" <args:Args> ")" => Box::new(NaiveExpr::Function(name, args))
+FunctionCall: Box<Expr> = {
+    <name:Identifier> "(" <args:Args> ")" => Box::new(Expr::Function(name, args))
 };
 
 Args = Comma<Expression>;
 
-pub Factor: Box<NaiveExpr> = {
+pub Factor: Box<Expr> = {
     <Variable>,
     <Num>,
-    "(" <Expressions> ")" => Box::new(NaiveExpr::Grouping(<>)),
+    "(" <Expressions> ")" => Box::new(Expr::Grouping(<>)),
     <FunctionCall>
 };
 
-Variable: Box<NaiveExpr> = <Identifier> => Box::new(NaiveExpr::Variable(<>));
+Variable: Box<Expr> = <Identifier> => Box::new(Expr::Variable(<>));
 
-Num: Box<NaiveExpr> = r"[0-9]+" => Box::new(NaiveExpr::Num(i32::from_str(<>).unwrap()));
+Num: Box<Expr> = r"[0-9]+" => Box::new(Expr::Num(i32::from_str(<>).unwrap()));
 
 Identifier: String = r"[[:alpha:]][[:alnum:]]*" => String::from_str(<>).unwrap();
