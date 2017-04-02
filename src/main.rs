@@ -6,7 +6,7 @@ extern crate itertools;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-pub mod calculator;
+pub mod parser;
 pub mod ast;
 pub mod processing;
 
@@ -64,7 +64,7 @@ fn evaluate_file(filename: String) {
 }
 
 fn do_the_thing(input: String, mut bindings: &mut HashMap<String, i32>) {
-    let exps = calculator::parse_Expressions(input.as_str()).unwrap();
+    let exps = parser::parse_Expressions(input.as_str()).unwrap();
     println!("Result: {:?}", exps);
     println!("===== Pretty printing =====\n{}===========================", &exps.pretty_print(0));
     //println!("Lisp: {}", &exp.lisp());
