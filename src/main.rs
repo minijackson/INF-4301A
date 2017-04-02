@@ -10,7 +10,7 @@ pub mod calculator;
 pub mod ast;
 pub mod processing;
 
-use processing::{Evaluate,Print};
+use processing::{Evaluate,Print,TypeAnnotate};
 
 use std::collections::HashMap;
 use std::env;
@@ -64,9 +64,10 @@ fn evaluate_file(filename: String) {
 }
 
 fn do_the_thing(input: String, mut bindings: &mut HashMap<String, i32>) {
-    let exps = calculator::parse_Expressions(input.as_str()).unwrap();
-    println!("Result: {:?}", exps);
-    println!("===== Pretty printing =====\n{}===========================", &exps.pretty_print(0));
-    //println!("Lisp: {}", &exp.lisp());
-    println!("Value: {}", &exps.evaluate(&mut bindings));
+    let exprs = calculator::parse_Expressions(input.as_str()).unwrap();
+    println!("Result: {:?}", exprs);
+    println!("===== Pretty printing =====\n{}===========================", &exprs.pretty_print(0));
+    let typed_exprs = exprs.type_annotate(&mut HashMap::new());
+    println!("Typed result: {:?}", typed_exprs);
+    println!("Value: {}", &typed_exprs.evaluate(&mut bindings));
 }
