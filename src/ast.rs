@@ -1,9 +1,9 @@
-#[derive(Debug,PartialEq,Eq)]
+#[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Exprs {
     pub exprs: Vec<Box<Expr>>
 }
 
-#[derive(Debug,PartialEq,Eq)]
+#[derive(Debug,Clone,PartialEq,Eq)]
 pub enum Expr {
     Grouping(Exprs),
     Let(Vec<Binding>, Exprs),
@@ -15,17 +15,17 @@ pub enum Expr {
     Num(i32),
 }
 
-#[derive(Debug,PartialEq,Eq)]
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub enum BinaryOpCode {
     Add, Sub, Mul, Div,
 }
 
-#[derive(Debug,PartialEq,Eq)]
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub enum UnaryOpCode {
     Plus, Minus
 }
 
-#[derive(Debug,PartialEq,Eq)]
+#[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Binding {
     pub variable: String,
     pub value: Expr

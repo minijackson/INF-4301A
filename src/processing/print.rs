@@ -84,14 +84,14 @@ impl Print for Binding {
 
 #[cfg(test)]
 mod test {
-    use calculator;
+    use parser;
     use super::Print;
 
     #[test]
     fn pretty_print() {
         let exp_str = "2+2+2";
         let expected = "2 + 2 + 2";
-        let exp = calculator::parse_Expression(exp_str).unwrap();
+        let exp = parser::parse_Expression(exp_str).unwrap();
         let result = &exp.pretty_print(0);
         assert_eq!(expected,result);
     }

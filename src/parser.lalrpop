@@ -29,26 +29,12 @@ pub Expression: Box<Expr> = {
 
 Tier0: Box<Expr> = {
     IfExp,
-    Let,
     Tier1
 };
 
 IfExp: Box<Expr> = {
     "if" <cond:Expression> "then" <true_branch:Expression> "else" <false_branch:Expression>
         => Box::new(Expr::If(cond, true_branch, false_branch))
-};
-
-Let: Box<Expr> = {
-    "let" <assignments:(<Assignment>)*> <assignment:Assignment> "in" <exprs:Expressions> "end"
-        => {
-            let mut assignments = assignments;
-            assignments.push(assignment);
-            Box::new(Expr::Let(assignments, exprs))
-        }
-};
-
-Assignment: Binding = {
-    "var" <name:Identifier> ":=" <exp:Expression> => Binding{ variable: name, value: *exp }
 };
 
 //===============
@@ -87,18 +73,32 @@ UnaryOp: UnaryOpCode = {
 //== Rest ==
 //==========
 
+pub Factor: Box<Expr> = {
+    Let,
+    Variable,
+    Num,
+    "(" <Expressions> ")" => Box::new(Expr::Grouping(<>)),
+    FunctionCall
+};
+
+Let: Box<Expr> = {
+    "let" <assignments:(<Assignment>)*> <assignment:Assignment> "in" <exprs:Expressions> "end"
+        => {
+            let mut assignments = assignments;
+            assignments.push(assignment);
+            Box::new(Expr::Let(assignments, exprs))
+        }
+};
+
+Assignment: Binding = {
+    "var" <name:Identifier> ":=" <exp:Expression> => Binding{ variable: name, value: *exp }
+};
+
 FunctionCall: Box<Expr> = {
     <name:Identifier> "(" <args:Args> ")" => Box::new(Expr::Function(name, args))
 };
 
 Args = Comma<Expression>;
-
-pub Factor: Box<Expr> = {
-    <Variable>,
-    <Num>,
-    "(" <Expressions> ")" => Box::new(Expr::Grouping(<>)),
-    <FunctionCall>
-};
 
 Variable: Box<Expr> = <Identifier> => Box::new(Expr::Variable(<>));
 

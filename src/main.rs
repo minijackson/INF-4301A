@@ -1,18 +1,20 @@
 #![feature(box_syntax,box_patterns,slice_patterns)]
 
+pub mod ast;
+pub mod builtins;
+pub mod common;
+pub mod parser;
+pub mod processing;
+
+use processing::{Evaluate,Print};
+use common::{Environment,ValueInfo};
+
 extern crate rustyline;
 extern crate itertools;
 
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-pub mod parser;
-pub mod ast;
-pub mod processing;
-
-use processing::{Evaluate,Print};
-
-use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -32,7 +34,7 @@ fn repl() {
         println!("No previous history.");
     }
 
-    let mut bindings = HashMap::new();
+    let mut bindings = Environment::new();
 
     loop {
         let readline = rl.readline("> ");
@@ -60,13 +62,13 @@ fn evaluate_file(filename: String) {
 
     file.read_to_string(&mut content).unwrap();
 
-    do_the_thing(content, &mut HashMap::new());
+    do_the_thing(content, &mut Environment::new());
 }
 
-fn do_the_thing(input: String, mut bindings: &mut HashMap<String, i32>) {
+fn do_the_thing<'a>(input: String, mut bindings: &'a mut Environment<ValueInfo>) {
     let exps = parser::parse_Expressions(input.as_str()).unwrap();
     println!("Result: {:?}", exps);
     println!("===== Pretty printing =====\n{}===========================", &exps.pretty_print(0));
     //println!("Lisp: {}", &exp.lisp());
-    println!("Value: {}", &exps.evaluate(&mut bindings));
+    println!("Final value: {:?}", &exps.evaluate(&mut bindings));
 }
