@@ -4,12 +4,12 @@ use type_sys::Value;
 // argument of the "get_args!" macro, the assignment "count += 1" is unused.
 
 macro_rules! get_args {
-    ( $args:expr, $( $type:path ),* ) => {
+    ( $args:expr, $( $arg_type:path ),* ) => {
         {
             let mut count = 0;
             (
                 $(
-                    if let &$type(val) = $args.get(count).expect("Wrong number of arguments") {
+                    if let &$arg_type(val) = $args.get(count).expect("Wrong number of arguments") {
                         count += 1;
                         val
                     } else {
