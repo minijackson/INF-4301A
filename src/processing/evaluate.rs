@@ -1,6 +1,7 @@
 use ast::*;
 use builtins;
-use common::{Environment,ValueInfo,Value};
+use type_sys::Value;
+use env::{Environment,ValueInfo};
 
 pub trait Evaluate {
     fn evaluate(&self, bindings: &mut Environment<ValueInfo>) -> Value;

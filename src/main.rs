@@ -2,12 +2,13 @@
 
 pub mod ast;
 pub mod builtins;
-pub mod common;
+pub mod env;
 pub mod parser;
 pub mod processing;
+pub mod type_sys;
 
 use processing::{Evaluate,Print};
-use common::{Environment,ValueInfo};
+use env::{Environment,ValueInfo};
 
 extern crate rustyline;
 extern crate itertools;
@@ -15,16 +16,16 @@ extern crate itertools;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-use std::env;
+use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
 
 fn main() {
-    let argc = env::args().count();
+    let argc = args().count();
     if argc == 1 {
         repl();
     } else if argc == 2 {
-        evaluate_file(env::args().nth(1).unwrap());
+        evaluate_file(args().nth(1).unwrap());
     }
 }
 
