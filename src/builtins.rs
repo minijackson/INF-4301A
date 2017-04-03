@@ -21,6 +21,19 @@ macro_rules! get_args {
     };
 }
 
+macro_rules! define_operator {
+    ( $symbol:tt, $func_name:ident, $ret_type:path ) => {
+
+        #[allow(unused_assignments)]
+        pub fn $func_name(args: Vec<Value>) -> Value {
+            use self::Value::*;
+            let (lhs, rhs) = get_args!(args, Integer, Integer);
+            $ret_type(lhs $symbol rhs)
+        }
+
+    }
+}
+
 pub fn resolve_func(name: String, args: Vec<Value>) -> Value {
     match name.as_ref() {
         "print" => print(args),
@@ -54,65 +67,19 @@ pub fn un_minus(args: Vec<Value>) -> Value {
     Integer(-val)
 }
 
-#[allow(unused_assignments)]
-pub fn plus(args: Vec<Value>) -> Value {
-    use self::Value::*;
-    let (lhs, rhs) = get_args!(args, Integer, Integer);
-    Integer(lhs + rhs)
-}
-
-#[allow(unused_assignments)]
-pub fn minus(args: Vec<Value>) -> Value {
-    use self::Value::*;
-    let (lhs, rhs) = get_args!(args, Integer, Integer);
-    Integer(lhs - rhs)
-}
-
-#[allow(unused_assignments)]
-pub fn mul(args: Vec<Value>) -> Value {
-    use self::Value::*;
-    let (lhs, rhs) = get_args!(args, Integer, Integer);
-    Integer(lhs * rhs)
-}
-
-#[allow(unused_assignments)]
-pub fn div(args: Vec<Value>) -> Value {
-    use self::Value::*;
-    let (lhs, rhs) = get_args!(args, Integer, Integer);
-    Integer(lhs / rhs)
-}
+define_operator!(+, plus,  Integer);
+define_operator!(-, minus, Integer);
+define_operator!(*, mul,   Integer);
+define_operator!(/, div,   Integer);
 
 //========================
 //== Logical Operations ==
 //========================
 
-#[allow(unused_assignments)]
-pub fn lower(args: Vec<Value>) -> Value {
-    use self::Value::*;
-    let (lhs, rhs) = get_args!(args, Integer, Integer);
-    Bool(lhs < rhs)
-}
-
-#[allow(unused_assignments)]
-pub fn lower_eq(args: Vec<Value>) -> Value {
-    use self::Value::*;
-    let (lhs, rhs) = get_args!(args, Integer, Integer);
-    Bool(lhs <= rhs)
-}
-
-#[allow(unused_assignments)]
-pub fn greater(args: Vec<Value>) -> Value {
-    use self::Value::*;
-    let (lhs, rhs) = get_args!(args, Integer, Integer);
-    Bool(lhs > rhs)
-}
-
-#[allow(unused_assignments)]
-pub fn greater_eq(args: Vec<Value>) -> Value {
-    use self::Value::*;
-    let (lhs, rhs) = get_args!(args, Integer, Integer);
-    Bool(lhs >= rhs)
-}
+define_operator!(<,  lower,      Bool);
+define_operator!(<=, lower_eq,   Bool);
+define_operator!(>,  greater,    Bool);
+define_operator!(>=, greater_eq, Bool);
 
 #[allow(unused_assignments)]
 pub fn equal(args: Vec<Value>) -> Value {
