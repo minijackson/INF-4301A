@@ -68,6 +68,5 @@ fn do_the_thing<'a>(input: String, mut bindings: &'a mut Environment<ValueInfo>)
     let exps = parser::parse_Expressions(input.as_str()).unwrap();
     println!("Result: {:?}", exps);
     println!("===== Pretty printing =====\n{}===========================", &exps.pretty_print(0));
-    //println!("Lisp: {}", &exp.lisp());
     println!("Final value: {:?}", &exps.evaluate(&mut bindings));
 }

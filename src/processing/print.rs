@@ -149,15 +149,165 @@ impl Print for Binding {
 
 #[cfg(test)]
 mod test {
-    use parser;
     use super::Print;
 
-    #[test]
-    fn pretty_print() {
-        let exp_str = "2+2+2";
-        let expected = "2 + 2 + 2";
-        let exp = parser::parse_Expression(exp_str).unwrap();
-        let result = &exp.pretty_print(0);
-        assert_eq!(expected, result);
+    // Theses tests suppose the parser is correct so we don't have to manually input the AST
+    use parser;
+
+    macro_rules! perfect_coding {
+        ( $expr:expr ) => {
+            let expected = $expr;
+            let expr = parser::parse_Expression($expr).unwrap();
+            let result = expr.pretty_print(0);
+            assert_eq!(expected, result);
+        }
     }
+
+    macro_rules! not_perfect_coding {
+        ( $expr:expr ) => {
+            let expected = $expr;
+            let expr = parser::parse_Expression($expr).unwrap();
+            let result = expr.pretty_print(0);
+            assert_ne!(expected, result);
+        }
+    }
+
+    #[test]
+    fn simple_operators() {
+        perfect_coding!("2 + 2");
+        perfect_coding!("2 - 2");
+        perfect_coding!("2 * 2");
+        perfect_coding!("2 / 2");
+        perfect_coding!("2 < 2");
+        perfect_coding!("2 <= 2");
+        perfect_coding!("2 > 2");
+        perfect_coding!("2 >= 2");
+        perfect_coding!("-2");
+        perfect_coding!("+2");
+    }
+
+    #[test]
+    fn chained_operators() {
+        perfect_coding!("2 + 2 + 2");
+        perfect_coding!("2 + +2 + -2");
+        perfect_coding!("2 <> 2 > 2");
+    }
+
+    #[test]
+    fn grouping() {
+        // TODO: should not be parse as a grouping, but as a simple parenthesis
+        not_perfect_coding!("(
+  2
+)");
+
+        perfect_coding!("(
+  2,
+  2
+)");
+
+        perfect_coding!("(
+  2,
+  2,
+  2
+)");
+
+        perfect_coding!("(
+  (
+    2,
+    2,
+    2
+  ),
+  2,
+  (
+    2,
+    2,
+    2
+  )
+)");
+    }
+
+    #[test]
+    fn let_block() {
+        perfect_coding!("let
+  var x := 2
+in
+  2
+end");
+
+        perfect_coding!("let
+  var x := let
+    var x := 2
+  in
+    2
+  end
+in
+  let
+    var x := 2
+  in
+    2
+  end
+end");
+
+    }
+
+    #[test]
+    fn assign() {
+        perfect_coding!("x := 1");
+        perfect_coding!("x := y := 2");
+    }
+
+    #[test]
+    fn function_call() {
+        perfect_coding!("x()");
+        perfect_coding!("x(1)");
+        perfect_coding!("x(1, 2, 3)");
+        perfect_coding!("x(y(1))");
+        perfect_coding!("x(1, y(2), 3)");
+    }
+
+    #[test]
+    fn if_block() {
+        perfect_coding!("if 1 then 1 else 0");
+        perfect_coding!("if if 1 then 1 else 0 then if 1 then 1 else 0 else if 1 then 1 else 0");
+        perfect_coding!("if (
+  0,
+  1
+) then (
+  0,
+  1
+) else (
+  0,
+  1
+)");
+    }
+
+    #[test]
+    fn while_block() {
+        perfect_coding!("while 1 do 1");
+        perfect_coding!("while while 1 do 1 do while 1 do 1");
+    }
+
+    #[test]
+    fn variable() {
+        perfect_coding!("hello");
+        perfect_coding!("hello_world");
+        perfect_coding!("hello_world2");
+        // Should be catched by the parser's unit tests but hey, why not?
+        not_perfect_coding!("hello-world2");
+    }
+
+    #[test]
+    fn value() {
+        perfect_coding!("true");
+        perfect_coding!("false");
+        perfect_coding!("0");
+        perfect_coding!("1");
+        perfect_coding!("42");
+        perfect_coding!("69");
+        perfect_coding!("1337");
+        // TODO
+        //perfect_coding!("10.");
+        //perfect_coding!("13.37");
+    }
+
 }

@@ -137,4 +137,4 @@ Value: Box<Expr> = {
     "false" => Box::new(Expr::Value(type_sys::Value::Bool(false))),
 };
 
-Identifier: String = r"[[:alpha:]][[:alnum:]]*" => String::from_str(<>).unwrap();
+Identifier: String = r"[[:alpha:]][[:alnum:]_]*" => String::from_str(<>).unwrap();
