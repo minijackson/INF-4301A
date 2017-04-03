@@ -36,6 +36,10 @@ pub fn print(args: Vec<Value>) -> Value {
     Void
 }
 
+//===========================
+//== Arithmetic operations ==
+//===========================
+
 #[allow(unused_assignments)]
 pub fn un_plus(args: Vec<Value>) -> Value {
     use self::Value::*;
@@ -76,4 +80,52 @@ pub fn div(args: Vec<Value>) -> Value {
     use self::Value::*;
     let (lhs, rhs) = get_args!(args, Integer, Integer);
     Integer(lhs / rhs)
+}
+
+//========================
+//== Logical Operations ==
+//========================
+
+#[allow(unused_assignments)]
+pub fn lower(args: Vec<Value>) -> Value {
+    use self::Value::*;
+    let (lhs, rhs) = get_args!(args, Integer, Integer);
+    Bool(lhs < rhs)
+}
+
+#[allow(unused_assignments)]
+pub fn lower_eq(args: Vec<Value>) -> Value {
+    use self::Value::*;
+    let (lhs, rhs) = get_args!(args, Integer, Integer);
+    Bool(lhs <= rhs)
+}
+
+#[allow(unused_assignments)]
+pub fn greater(args: Vec<Value>) -> Value {
+    use self::Value::*;
+    let (lhs, rhs) = get_args!(args, Integer, Integer);
+    Bool(lhs > rhs)
+}
+
+#[allow(unused_assignments)]
+pub fn greater_eq(args: Vec<Value>) -> Value {
+    use self::Value::*;
+    let (lhs, rhs) = get_args!(args, Integer, Integer);
+    Bool(lhs >= rhs)
+}
+
+#[allow(unused_assignments)]
+pub fn equal(args: Vec<Value>) -> Value {
+    use self::Value::*;
+    let lhs = args.get(0).expect("Wrong number of arguments");
+    let rhs = args.get(1).expect("Wrong number of arguments");
+    Bool(lhs == rhs)
+}
+
+#[allow(unused_assignments)]
+pub fn not_equal(args: Vec<Value>) -> Value {
+    use self::Value::*;
+    let lhs = args.get(0).expect("Wrong number of arguments");
+    let rhs = args.get(1).expect("Wrong number of arguments");
+    Bool(lhs != rhs)
 }

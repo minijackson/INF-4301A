@@ -63,6 +63,13 @@ impl Evaluate for Expr {
                     &Sub => builtins::minus(args),
                     &Mul => builtins::mul(args),
                     &Div => builtins::div(args),
+
+                    &Lt => builtins::lower(args),
+                    &Le => builtins::lower_eq(args),
+                    &Gt => builtins::greater(args),
+                    &Ge => builtins::greater_eq(args),
+                    &Eq => builtins::equal(args),
+                    &Ne => builtins::not_equal(args),
                 }
             }
             &UnaryOp(box ref exp, ref op) => {
@@ -79,7 +86,7 @@ impl Evaluate for Expr {
                     .value
                     .clone()
             }
-            &Num(value) => Value::Integer(value),
+            &Value(ref value) => value.clone(),
         }
     }
 }

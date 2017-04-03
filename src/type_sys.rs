@@ -2,12 +2,12 @@ use std::fmt;
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub enum Type {
-    Void, Integer, /* Float, Bool, String, Array, */
+    Void, Integer, Bool, /* Float, String, Array, */
 }
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub enum Value {
-    Void, Integer(i32), /* Float, Bool, String, Array, */
+    Void, Integer(i32), Bool(bool), /* Float, String, Array, */
 }
 
 impl Value {
@@ -16,7 +16,10 @@ impl Value {
 
         match self {
             &Integer(0) => false,
-            _ => true
+            &Integer(_) => true,
+            &Bool(false) => false,
+            &Bool(true) => true,
+            &Void => panic!("Tried to convert void to bool")
         }
     }
 }
@@ -27,7 +30,8 @@ impl fmt::Display for Value {
 
         match self {
             &Integer(value) => write!(f, "{}", value),
-            _ => panic!("Unsupported type to print")
+            &Bool(value) => write!(f, "{}", value),
+            &Void => panic!("Void is not printable")
         }
     }
 }

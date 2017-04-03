@@ -1,3 +1,5 @@
+use type_sys;
+
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Exprs {
     pub exprs: Vec<Box<Expr>>
@@ -13,12 +15,13 @@ pub enum Expr {
     BinaryOp(Box<Expr>, Box<Expr>, BinaryOpCode),
     UnaryOp(Box<Expr>, UnaryOpCode),
     Variable(String),
-    Num(i32),
+    Value(type_sys::Value),
 }
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub enum BinaryOpCode {
     Add, Sub, Mul, Div,
+    Lt, Le, Gt, Ge, Eq, Ne
 }
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]

@@ -1,6 +1,7 @@
-use std::str::FromStr;
-
 use ast::{Exprs,Expr,BinaryOpCode,UnaryOpCode,Binding};
+use type_sys;
+
+use std::str::FromStr;
 
 grammar;
 
@@ -28,11 +29,11 @@ pub Expression: Box<Expr> = {
 //==================
 
 Tier0: Box<Expr> = {
-    IfExp,
+    If,
     Tier1
 };
 
-IfExp: Box<Expr> = {
+If: Box<Expr> = {
     "if" <cond:Expression> "then" <true_branch:Expression> "else" <false_branch:Expression>
         => Box::new(Expr::If(cond, true_branch, false_branch))
 };
@@ -52,14 +53,28 @@ BinOpTier<Op, NextTier>: Box<Expr> = {
     NextTier
 };
 
-Tier2 = BinOpTier<ExprOp, Tier3>;
-ExprOp: BinaryOpCode = {
+Tier2 = BinOpTier<Tier2Op, Tier3>;
+Tier2Op: BinaryOpCode = {
+    "="  => BinaryOpCode::Eq,
+    "<>" => BinaryOpCode::Ne,
+};
+
+Tier3 = BinOpTier<Tier3Op, Tier4>;
+Tier3Op: BinaryOpCode = {
+    "<"  => BinaryOpCode::Lt,
+    "<=" => BinaryOpCode::Le,
+    ">"  => BinaryOpCode::Gt,
+    ">=" => BinaryOpCode::Ge,
+};
+
+Tier4 = BinOpTier<Tier4Op, Tier5>;
+Tier4Op: BinaryOpCode = {
     "+" => BinaryOpCode::Add,
     "-" => BinaryOpCode::Sub,
 };
 
-Tier3 = BinOpTier<TermOp, UnaryOpExp>;
-TermOp: BinaryOpCode = {
+Tier5 = BinOpTier<Tier5Op, UnaryOpExp>;
+Tier5Op: BinaryOpCode = {
     "*" => BinaryOpCode::Mul,
     "/" => BinaryOpCode::Div,
 };
@@ -82,7 +97,7 @@ UnaryOp: UnaryOpCode = {
 pub Factor: Box<Expr> = {
     Let,
     Variable,
-    Num,
+    Value,
     "(" <Expressions> ")" => Box::new(Expr::Grouping(<>)),
     FunctionCall
 };
@@ -106,6 +121,15 @@ Args = Comma<Expression>;
 
 Variable: Box<Expr> = <Identifier> => Box::new(Expr::Variable(<>));
 
-Num: Box<Expr> = r"[0-9]+" => Box::new(Expr::Num(i32::from_str(<>).unwrap()));
+Value: Box<Expr> = {
+    r"[0-9]+" => Box::new(Expr::Value(
+                    type_sys::Value::Integer(
+                        i32::from_str(<>).unwrap()
+                        )
+                    )
+                 ),
+    "true"  => Box::new(Expr::Value(type_sys::Value::Bool(true))),
+    "false" => Box::new(Expr::Value(type_sys::Value::Bool(false))),
+};
 
 Identifier: String = r"[[:alpha:]][[:alnum:]]*" => String::from_str(<>).unwrap();

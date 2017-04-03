@@ -48,6 +48,13 @@ impl Print for Expr {
                     &Sub => format!("{} - {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
                     &Mul => format!("{} * {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
                     &Div => format!("{} / {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+
+                    &Lt => format!("{} < {}",  &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+                    &Le => format!("{} <= {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+                    &Gt => format!("{} > {}",  &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+                    &Ge => format!("{} >= {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+                    &Eq => format!("{} = {}",  &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
+                    &Ne => format!("{} <> {}", &lhs.pretty_print(indent), &rhs.pretty_print(indent)),
                 }
             }
             &UnaryOp(box ref exp, ref op) => {
@@ -57,7 +64,7 @@ impl Print for Expr {
                 }
             }
             &Variable(ref name) => name.clone(),
-            &Num(value) => value.to_string(),
+            &Value(ref value) => value.to_string(),
         }
     }
 }
