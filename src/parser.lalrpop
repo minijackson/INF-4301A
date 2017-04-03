@@ -29,13 +29,18 @@ pub Expression: Box<Expr> = {
 //==================
 
 Tier0: Box<Expr> = {
-    If,
+    If, While,
     Tier1
 };
 
 If: Box<Expr> = {
     "if" <cond:Expression> "then" <true_branch:Expression> "else" <false_branch:Expression>
         => Box::new(Expr::If(cond, true_branch, false_branch))
+};
+
+While: Box<Expr> = {
+    "while" <cond:Expression> "do" <something:Expression>
+        => Box::new(Expr::While(cond, something))
 };
 
 //===============

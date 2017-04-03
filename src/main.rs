@@ -1,5 +1,3 @@
-#![feature(box_syntax,box_patterns,slice_patterns)]
-
 pub mod ast;
 pub mod builtins;
 pub mod env;

@@ -12,6 +12,7 @@ pub enum Expr {
     Assign(String, Box<Expr>),
     Function(String, Vec<Box<Expr>>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
+    While(Box<Expr>, Box<Expr>),
     BinaryOp(Box<Expr>, Box<Expr>, BinaryOpCode),
     UnaryOp(Box<Expr>, UnaryOpCode),
     Variable(String),

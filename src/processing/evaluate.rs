@@ -1,7 +1,7 @@
 use ast::*;
 use builtins;
 use type_sys::Value;
-use env::{Environment,ValueInfo};
+use env::{Environment, ValueInfo};
 
 pub trait Evaluate {
     fn evaluate(&self, bindings: &mut Environment<ValueInfo>) -> Value;
@@ -22,41 +22,56 @@ impl Evaluate for Expr {
         use ast::Expr::*;
         use ast::BinaryOpCode::*;
         use ast::UnaryOpCode::*;
+        use type_sys;
 
         match self {
-            &Grouping(ref exprs) => {
-                exprs.evaluate(bindings)
-            }
+            &Grouping(ref exprs) => exprs.evaluate(bindings),
+
             &Let(ref assignments, ref exprs) => {
                 bindings.enter_scope();
                 for binding in assignments.iter() {
                     let value = binding.value.evaluate(bindings);
-                    bindings.declare(binding.variable.clone(), ValueInfo { value: value, declaration: binding.clone() });
+                    bindings.declare(binding.variable.clone(),
+                                     ValueInfo {
+                                         value: value,
+                                         declaration: binding.clone(),
+                                     });
                 }
 
                 let rv = exprs.evaluate(bindings);
                 bindings.leave_scope();
                 rv
             }
+
             &Assign(ref name, ref expr) => {
                 let value = expr.evaluate(bindings);
                 bindings.assign(name, value.clone());
                 value
             }
+
             &Function(ref name, ref args) => {
                 let args = args.iter()
                     .map(|ref expr| expr.evaluate(bindings))
                     .collect();
                 builtins::resolve_func(name.clone(), args)
             }
-            &If(box ref cond, ref true_branch, ref false_branch) => {
+
+            &If(ref cond, ref true_branch, ref false_branch) => {
                 if cond.evaluate(bindings).truthy() {
                     true_branch.evaluate(bindings)
                 } else {
                     false_branch.evaluate(bindings)
                 }
             }
-            &BinaryOp(box ref lhs, box ref rhs, ref op) => {
+
+            &While(ref cond, ref expr) => {
+                while cond.evaluate(bindings).truthy() {
+                    expr.evaluate(bindings);
+                }
+                type_sys::Value::Void
+            }
+
+            &BinaryOp(ref lhs, ref rhs, ref op) => {
                 let args = vec![lhs.evaluate(bindings), rhs.evaluate(bindings)];
                 match op {
                     &Add => builtins::plus(args),
@@ -72,21 +87,24 @@ impl Evaluate for Expr {
                     &Ne => builtins::not_equal(args),
                 }
             }
-            &UnaryOp(box ref exp, ref op) => {
+
+            &UnaryOp(ref exp, ref op) => {
                 let args = vec![exp.evaluate(bindings)];
                 match op {
                     &Plus => builtins::un_plus(args),
                     &Minus => builtins::un_minus(args),
                 }
             }
+
             &Variable(ref name) => {
-                bindings
-                    .get(name)
+                bindings.get(name)
                     .expect(format!("Unbounded variable: {}", name).as_str())
                     .value
                     .clone()
             }
+
             &Value(ref value) => value.clone(),
+
         }
     }
 }
