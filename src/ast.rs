@@ -7,6 +7,7 @@ pub struct Exprs {
 pub enum Expr {
     Grouping(Exprs),
     Let(Vec<Binding>, Exprs),
+    Assign(String, Box<Expr>),
     Function(String, Vec<Box<Expr>>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     BinaryOp(Box<Expr>, Box<Expr>, BinaryOpCode),

@@ -41,18 +41,24 @@ IfExp: Box<Expr> = {
 //== Operators ==
 //===============
 
+Tier1: Box<Expr> = {
+    <var:Identifier> ":=" <value:Expression> => Box::new(Expr::Assign(var, value)),
+    Tier2
+};
+
 BinOpTier<Op, NextTier>: Box<Expr> = {
-    <lhs:BinOpTier<Op, NextTier>> <op:Op> <rhs:NextTier> => Box::new(Expr::BinaryOp(lhs, rhs, op)),
+    <lhs:BinOpTier<Op, NextTier>> <op:Op> <rhs:NextTier>
+        => Box::new(Expr::BinaryOp(lhs, rhs, op)),
     NextTier
 };
 
-Tier1 = BinOpTier<ExprOp, Tier2>;
+Tier2 = BinOpTier<ExprOp, Tier3>;
 ExprOp: BinaryOpCode = {
     "+" => BinaryOpCode::Add,
     "-" => BinaryOpCode::Sub,
 };
 
-Tier2 = BinOpTier<TermOp, UnaryOpExp>;
+Tier3 = BinOpTier<TermOp, UnaryOpExp>;
 TermOp: BinaryOpCode = {
     "*" => BinaryOpCode::Mul,
     "/" => BinaryOpCode::Div,
@@ -82,20 +88,18 @@ pub Factor: Box<Expr> = {
 };
 
 Let: Box<Expr> = {
-    "let" <assignments:(<Assignment>)*> <assignment:Assignment> "in" <exprs:Expressions> "end"
-        => {
-            let mut assignments = assignments;
-            assignments.push(assignment);
-            Box::new(Expr::Let(assignments, exprs))
-        }
+    "let" <declarations:(<Declaration>)*> "in" <exprs:Expressions> "end"
+        => Box::new(Expr::Let(declarations, exprs))
 };
 
-Assignment: Binding = {
-    "var" <name:Identifier> ":=" <exp:Expression> => Binding{ variable: name, value: *exp }
+Declaration: Binding = {
+    "var" <name:Identifier> ":=" <exp:Expression>
+        => Binding{ variable: name, value: *exp }
 };
 
 FunctionCall: Box<Expr> = {
-    <name:Identifier> "(" <args:Args> ")" => Box::new(Expr::Function(name, args))
+    <name:Identifier> "(" <args:Args> ")"
+        => Box::new(Expr::Function(name, args))
 };
 
 Args = Comma<Expression>;

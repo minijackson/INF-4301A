@@ -57,4 +57,22 @@ impl<T> Environment<T> {
             .find(|scope| scope.contains_key(name))
             .map(|scope| scope.get(name).unwrap())
     }
+
+    pub fn get_mut(&mut self, name: &String) -> Option<&mut T> {
+        self.scopes
+            .iter_mut()
+            .find(|scope| scope.contains_key(name))
+            .map(|scope| scope.get_mut(name).unwrap())
+    }
+
+}
+
+impl Environment<ValueInfo> {
+
+    pub fn assign(&mut self, name: &String, value: Value) {
+        self.get_mut(name)
+            .expect(format!("Could not find variable {} in current scope", name).as_str())
+            .value = value;
+    }
+
 }

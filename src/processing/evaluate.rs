@@ -38,6 +38,11 @@ impl Evaluate for Expr {
                 bindings.leave_scope();
                 rv
             }
+            &Assign(ref name, ref expr) => {
+                let value = expr.evaluate(bindings);
+                bindings.assign(name, value.clone());
+                value
+            }
             &Function(ref name, ref args) => {
                 let args = args.iter()
                     .map(|ref expr| expr.evaluate(bindings))

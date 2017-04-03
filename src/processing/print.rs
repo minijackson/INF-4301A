@@ -30,6 +30,7 @@ impl Print for Expr {
                         exprs.pretty_print(indent + 2),
                         ws)
             }
+            &Assign(ref name, ref expr) => format!("{} := {}", name, expr.pretty_print(indent)),
             &Function(ref name, ref args) => {
                 format!("{}({})",
                         name,
