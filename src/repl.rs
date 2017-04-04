@@ -39,6 +39,8 @@ pub fn start() {
                     Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => {
                         let exprs = multiline(&mut rl, line.clone());
                         do_the_thing(exprs, &mut bindings);
+                        // Restore the default completer.
+                        rl.set_completer(Some(ParseCompleter::default()));
                     }
                     Err(thing) => {
                         panic!("Parse error: {:?}", thing);
@@ -59,6 +61,7 @@ pub fn start() {
 
 fn multiline(mut rl: &mut Editor<ParseCompleter>, mut partial_input: String) -> ast::Exprs {
     partial_input += "\n";
+    rl.set_completer(Some(ParseCompleter::from_context(partial_input.clone())));
     match rl.readline("  ...> ") {
         Ok(line) => {
             partial_input += line.as_str();
@@ -87,13 +90,19 @@ fn multiline(mut rl: &mut Editor<ParseCompleter>, mut partial_input: String) -> 
 const BREAKS: [char; 12] = [' ', '\t', '\n', '(', ')', ',', '+', '-', '*', '/', '<', '>'];
 
 struct ParseCompleter {
+    context: String,
     breaks: BTreeSet<char>,
 }
 
 impl ParseCompleter {
     pub fn new() -> Self {
-        ParseCompleter { breaks: BREAKS.iter().cloned().collect() }
+        ParseCompleter { context: String::from(""), breaks: BREAKS.iter().cloned().collect() }
     }
+
+    pub fn from_context(context: String) -> Self {
+        ParseCompleter { context: context, breaks: BREAKS.iter().cloned().collect() }
+    }
+
 }
 
 impl Default for ParseCompleter {
@@ -106,7 +115,9 @@ impl Completer for ParseCompleter {
     fn complete(&self, line: &str, pos: usize) -> rustyline::Result<(usize, Vec<String>)> {
         let (start, word) = extract_word(line, pos, &self.breaks);
 
-        match parser::parse_Expressions(&line[0..start]) {
+        let partial_input = self.context.clone() + &line[0..start];
+
+        match parser::parse_Expressions(partial_input.as_str()) {
             Ok(_) => Ok((0, vec![])),
             Err(ParseError::UnrecognizedToken { token: None, expected: candidates }) => {
                 let candidates = candidates.into_iter()
