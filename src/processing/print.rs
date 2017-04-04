@@ -16,7 +16,17 @@ impl Print for Expr {
         let ws = strws.as_str();
 
         match self {
-            &Grouping(ref exprs) => format!("(\n{}{})", exprs.pretty_print(indent + 2), ws),
+            &Grouping(ref exprs) => {
+                let mut fmt_exprs = exprs.pretty_print(indent + 2);
+
+                // Add a comma for single expr grouping
+                if exprs.exprs.len() == 1 {
+                    fmt_exprs.pop();
+                    fmt_exprs += ",\n";
+                }
+
+                format!("(\n{}{})", fmt_exprs, ws)
+            }
 
             &Let(ref assignments, ref exprs) => {
                 format!("let\n{}{}in\n{}{}end",
@@ -52,59 +62,24 @@ impl Print for Expr {
             }
 
             &BinaryOp(ref lhs, ref rhs, ref op) => {
-                match op {
-                    &Add => {
-                        format!("{} + {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                    &Sub => {
-                        format!("{} - {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                    &Mul => {
-                        format!("{} * {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                    &Div => {
-                        format!("{} / {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
+                let op_symbol = match op {
+                    &Add => "+",
+                    &Sub => "-",
+                    &Mul => "*",
+                    &Div => "/",
 
-                    &Lt => {
-                        format!("{} < {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                    &Le => {
-                        format!("{} <= {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                    &Gt => {
-                        format!("{} > {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                    &Ge => {
-                        format!("{} >= {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                    &Eq => {
-                        format!("{} = {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                    &Ne => {
-                        format!("{} <> {}",
-                                &lhs.pretty_print(indent),
-                                &rhs.pretty_print(indent))
-                    }
-                }
+                    &Lt => "<",
+                    &Le => "<=",
+                    &Gt => ">",
+                    &Ge => ">=",
+                    &Eq => "=",
+                    &Ne => "<>",
+                };
+
+                format!("({} {} {})",
+                        &lhs.pretty_print(indent),
+                        op_symbol,
+                        &rhs.pretty_print(indent))
             }
 
             &UnaryOp(ref exp, ref op) => {
@@ -174,30 +149,34 @@ mod test {
 
     #[test]
     fn simple_operators() {
-        perfect_coding!("2 + 2");
-        perfect_coding!("2 - 2");
-        perfect_coding!("2 * 2");
-        perfect_coding!("2 / 2");
-        perfect_coding!("2 < 2");
-        perfect_coding!("2 <= 2");
-        perfect_coding!("2 > 2");
-        perfect_coding!("2 >= 2");
+        perfect_coding!("(2 + 2)");
+        perfect_coding!("(2 - 2)");
+        perfect_coding!("(2 * 2)");
+        perfect_coding!("(2 / 2)");
+        perfect_coding!("(2 < 2)");
+        perfect_coding!("(2 <= 2)");
+        perfect_coding!("(2 > 2)");
+        perfect_coding!("(2 >= 2)");
         perfect_coding!("-2");
         perfect_coding!("+2");
     }
 
     #[test]
     fn chained_operators() {
-        perfect_coding!("2 + 2 + 2");
-        perfect_coding!("2 + +2 + -2");
-        perfect_coding!("2 <> 2 > 2");
+        perfect_coding!("((2 + 2) + 2)");
+        perfect_coding!("((2 + +2) - -2)");
+        perfect_coding!("((2 <> 2) > 2)");
     }
 
     #[test]
     fn grouping() {
-        // TODO: should not be parse as a grouping, but as a simple parenthesis
+        // Should not be parsed as a grouping, but as a simple parenthesis
         not_perfect_coding!("(
   2
+)");
+
+        perfect_coding!("(
+  2,
 )");
 
         perfect_coding!("(

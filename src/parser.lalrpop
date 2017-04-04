@@ -103,7 +103,12 @@ pub Factor: Box<Expr> = {
     Let,
     Variable,
     Value,
-    "(" <Expressions> ")" => Box::new(Expr::Grouping(<>)),
+    "(" <Expression> ")" => <>,
+    "(" <expr:Expression> "," <exprs:Expressions> ")" => {
+        let mut exprs = exprs;
+        exprs.exprs.insert(0, expr);
+        Box::new(Expr::Grouping(exprs))
+    },
     FunctionCall
 };
 
