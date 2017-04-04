@@ -9,7 +9,7 @@ pub trait Evaluate {
 
 impl Evaluate for Exprs {
     fn evaluate(&self, bindings: &mut Environment<ValueInfo>) -> Value {
-        let mut value = Value::Integer(0);
+        let mut value = Value::Void;
         for expr in self.exprs.iter() {
             value = expr.evaluate(bindings);
         }

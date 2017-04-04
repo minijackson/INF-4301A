@@ -175,6 +175,10 @@ mod test {
   2
 )");
 
+        // To resolve the ambiguity, simply add a comma at the end (Rust's tuples style)
+        //
+        // Seemingly useless, but forcing groupings to have at least 2 expressions is uglier in the
+        // parser.
         perfect_coding!("(
   2,
 )");
