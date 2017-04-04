@@ -3,6 +3,7 @@ pub mod builtins;
 pub mod env;
 pub mod parser;
 pub mod processing;
+pub mod repl;
 pub mod type_sys;
 
 use processing::{Evaluate,Print};
@@ -10,9 +11,7 @@ use env::{Environment,ValueInfo};
 
 extern crate rustyline;
 extern crate itertools;
-
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
+extern crate lalrpop_util;
 
 use std::env::args;
 use std::fs::File;
@@ -21,36 +20,9 @@ use std::io::prelude::*;
 fn main() {
     let argc = args().count();
     if argc == 1 {
-        repl();
+        repl::start();
     } else if argc == 2 {
         evaluate_file(args().nth(1).unwrap());
-    }
-}
-
-fn repl() {
-    let mut rl = Editor::<()>::new();
-    if let Err(_) = rl.load_history("history.txt") {
-        println!("No previous history.");
-    }
-
-    let mut bindings = Environment::new();
-
-    loop {
-        let readline = rl.readline("> ");
-
-        match readline {
-            Ok(line) => {
-                rl.add_history_entry(&line);
-                do_the_thing(line, &mut bindings)
-            }
-            Err(ReadlineError::Interrupted) => continue,
-            Err(ReadlineError::Eof) => break,
-            Err(err) => {
-                println!("Error: {:?}", err);
-                break;
-            }
-        }
-        rl.save_history("history.txt").unwrap();
     }
 }
 
@@ -61,12 +33,13 @@ fn evaluate_file(filename: String) {
 
     file.read_to_string(&mut content).unwrap();
 
-    do_the_thing(content, &mut Environment::new());
+    let exprs = parser::parse_Expressions(content.as_str()).unwrap();
+
+    do_the_thing(exprs, &mut Environment::new());
 }
 
-fn do_the_thing<'a>(input: String, mut bindings: &'a mut Environment<ValueInfo>) {
-    let exps = parser::parse_Expressions(input.as_str()).unwrap();
-    println!("Result: {:?}", exps);
-    println!("===== Pretty printing =====\n{}===========================", &exps.pretty_print(0));
-    println!("Final value: {:?}", &exps.evaluate(&mut bindings));
+fn do_the_thing(exprs: ast::Exprs, mut bindings: &mut Environment<ValueInfo>) {
+    println!("Result: {:?}", exprs);
+    println!("===== Pretty printing =====\n{}===========================", &exprs.pretty_print(0));
+    println!("Final value: {:?}", &exprs.evaluate(&mut bindings));
 }
