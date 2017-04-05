@@ -43,6 +43,11 @@ impl<T> Environment<T> {
                 rv.insert(String::from("="), Box::new(builtins::equal));
                 rv.insert(String::from("<>"), Box::new(builtins::not_equal));
 
+                rv.insert(String::from("un+"), Box::new(builtins::un_plus));
+                rv.insert(String::from("un-"), Box::new(builtins::un_minus));
+
+                rv.insert(String::from("print"), Box::new(builtins::print));
+
                 rv
             }
         }

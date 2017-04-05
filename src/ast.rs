@@ -64,6 +64,19 @@ pub enum UnaryOpCode {
     Minus,
 }
 
+impl fmt::Display for UnaryOpCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::UnaryOpCode::*;
+
+        write!(f,
+               "{}",
+               match self {
+                   &Plus => "+",
+                   &Minus => "-",
+               })
+    }
+}
+
 #[derive(Debug,Clone,PartialEq)]
 pub struct Binding {
     pub variable: String,

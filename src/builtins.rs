@@ -66,13 +66,6 @@ macro_rules! define_cmp_operator {
     }
 }
 
-pub fn resolve_func(name: String, args: Vec<Value>) -> Value {
-    match name.as_ref() {
-        "print" => print(args),
-        _ => panic!("Unknown function: {}/{}", name, args.len()),
-    }
-}
-
 pub fn print(args: Vec<Value>) -> Value {
     use self::Value::*;
     //let (val,) = get_args!(args, Integer);

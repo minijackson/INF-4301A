@@ -1,91 +1,86 @@
 use ast::*;
-use builtins;
 use type_sys::Value;
 use env::{Environment, ValueInfo};
 
 pub trait Evaluate {
-    fn evaluate(&self, bindings: &mut Environment<ValueInfo>) -> Value;
+    fn evaluate(&self, env: &mut Environment<ValueInfo>) -> Value;
 }
 
 impl Evaluate for Exprs {
-    fn evaluate(&self, bindings: &mut Environment<ValueInfo>) -> Value {
+    fn evaluate(&self, env: &mut Environment<ValueInfo>) -> Value {
         let mut value = Value::Void;
         for expr in self.exprs.iter() {
-            value = expr.evaluate(bindings);
+            value = expr.evaluate(env);
         }
         value
     }
 }
 
 impl Evaluate for Expr {
-    fn evaluate(&self, bindings: &mut Environment<ValueInfo>) -> Value {
+    fn evaluate(&self, env: &mut Environment<ValueInfo>) -> Value {
         use ast::Expr::*;
-        use ast::BinaryOpCode::*;
         use ast::UnaryOpCode::*;
         use type_sys;
 
         match self {
-            &Grouping(ref exprs) => exprs.evaluate(bindings),
+            &Grouping(ref exprs) => exprs.evaluate(env),
 
             &Let(ref assignments, ref exprs) => {
-                bindings.enter_scope();
+                env.enter_scope();
                 for binding in assignments.iter() {
-                    let value = binding.value.evaluate(bindings);
-                    bindings.declare(binding.variable.clone(),
+                    let value = binding.value.evaluate(env);
+                    env.declare(binding.variable.clone(),
                                      ValueInfo {
                                          value: value,
                                          declaration: binding.clone(),
                                      });
                 }
 
-                let rv = exprs.evaluate(bindings);
-                bindings.leave_scope();
+                let rv = exprs.evaluate(env);
+                env.leave_scope();
                 rv
             }
 
             &Assign(ref name, ref expr) => {
-                let value = expr.evaluate(bindings);
-                bindings.assign(name, value.clone());
+                let value = expr.evaluate(env);
+                env.assign(name, value.clone());
                 value
             }
 
             &Function(ref name, ref args) => {
                 let args = args.iter()
-                    .map(|ref expr| expr.evaluate(bindings))
+                    .map(|ref expr| expr.evaluate(env))
                     .collect();
-                builtins::resolve_func(name.clone(), args)
+                env.call_builtin(&name, args)
             }
 
             &If(ref cond, ref true_branch, ref false_branch) => {
-                if cond.evaluate(bindings).truthy() {
-                    true_branch.evaluate(bindings)
+                if cond.evaluate(env).truthy() {
+                    true_branch.evaluate(env)
                 } else {
-                    false_branch.evaluate(bindings)
+                    false_branch.evaluate(env)
                 }
             }
 
             &While(ref cond, ref expr) => {
-                while cond.evaluate(bindings).truthy() {
-                    expr.evaluate(bindings);
+                while cond.evaluate(env).truthy() {
+                    expr.evaluate(env);
                 }
                 type_sys::Value::Void
             }
 
             &BinaryOp(ref lhs, ref rhs, ref op) => {
-                let args = vec![lhs.evaluate(bindings), rhs.evaluate(bindings)];
-                bindings.call_builtin(&op.to_string(), args)
+                let args = vec![lhs.evaluate(env), rhs.evaluate(env)];
+                env.call_builtin(&op.to_string(), args)
             }
 
             &UnaryOp(ref exp, ref op) => {
-                let args = vec![exp.evaluate(bindings)];
-                match op {
-                    &Plus => builtins::un_plus(args),
-                    &Minus => builtins::un_minus(args),
-                }
+                let args = vec![exp.evaluate(env)];
+                env.call_builtin(&format!("un{}", op.to_string()), args)
             }
 
             &Variable(ref name) => {
-                bindings.get_var(name)
+                env.get_var(name)
                     .expect(format!("Unbounded variable: {}", name).as_str())
                     .value
                     .clone()
