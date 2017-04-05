@@ -9,9 +9,9 @@ pub mod type_sys;
 use processing::{Evaluate,Print};
 use env::{Environment,ValueInfo};
 
-extern crate rustyline;
 extern crate itertools;
 extern crate lalrpop_util;
+extern crate rustyline;
 
 use std::env::args;
 use std::fs::File;

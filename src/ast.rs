@@ -1,11 +1,11 @@
 use type_sys;
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Exprs {
     pub exprs: Vec<Box<Expr>>
 }
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug,Clone,PartialEq)]
 pub enum Expr {
     Grouping(Exprs),
     Let(Vec<Binding>, Exprs),
@@ -30,7 +30,7 @@ pub enum UnaryOpCode {
     Plus, Minus
 }
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Binding {
     pub variable: String,
     pub value: Expr

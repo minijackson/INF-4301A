@@ -96,13 +96,18 @@ struct ParseCompleter {
 
 impl ParseCompleter {
     pub fn new() -> Self {
-        ParseCompleter { context: String::from(""), breaks: BREAKS.iter().cloned().collect() }
+        ParseCompleter {
+            context: String::from(""),
+            breaks: BREAKS.iter().cloned().collect(),
+        }
     }
 
     pub fn from_context(context: String) -> Self {
-        ParseCompleter { context: context, breaks: BREAKS.iter().cloned().collect() }
+        ParseCompleter {
+            context: context,
+            breaks: BREAKS.iter().cloned().collect(),
+        }
     }
-
 }
 
 impl Default for ParseCompleter {
@@ -113,6 +118,18 @@ impl Default for ParseCompleter {
 
 impl Completer for ParseCompleter {
     fn complete(&self, line: &str, pos: usize) -> rustyline::Result<(usize, Vec<String>)> {
+
+        fn begins_with(input: &String, prefix: String) -> bool {
+            let input_len = input.len();
+            let prefix_len = prefix.len();
+
+            if input_len < prefix_len {
+                false
+            } else {
+                input[0..prefix.len()] == prefix
+            }
+        }
+
         let (start, word) = extract_word(line, pos, &self.breaks);
 
         let partial_input = self.context.clone() + &line[0..start];
@@ -142,16 +159,5 @@ impl Completer for ParseCompleter {
             _ => Ok((0, vec![])),
 
         }
-    }
-}
-
-fn begins_with(input: &String, prefix: String) -> bool {
-    let input_len = input.len();
-    let prefix_len = prefix.len();
-
-    if input_len < prefix_len {
-        false
-    } else {
-        input[0..prefix.len()] == prefix
     }
 }
