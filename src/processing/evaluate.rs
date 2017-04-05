@@ -73,19 +73,7 @@ impl Evaluate for Expr {
 
             &BinaryOp(ref lhs, ref rhs, ref op) => {
                 let args = vec![lhs.evaluate(bindings), rhs.evaluate(bindings)];
-                match op {
-                    &Add => builtins::plus(args),
-                    &Sub => builtins::minus(args),
-                    &Mul => builtins::mul(args),
-                    &Div => builtins::div(args),
-
-                    &Lt => builtins::lower(args),
-                    &Le => builtins::lower_eq(args),
-                    &Gt => builtins::greater(args),
-                    &Ge => builtins::greater_eq(args),
-                    &Eq => builtins::equal(args),
-                    &Ne => builtins::not_equal(args),
-                }
+                bindings.call_builtin(&op.to_string(), args)
             }
 
             &UnaryOp(ref exp, ref op) => {
@@ -97,7 +85,7 @@ impl Evaluate for Expr {
             }
 
             &Variable(ref name) => {
-                bindings.get(name)
+                bindings.get_var(name)
                     .expect(format!("Unbounded variable: {}", name).as_str())
                     .value
                     .clone()

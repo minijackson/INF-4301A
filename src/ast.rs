@@ -1,8 +1,10 @@
 use type_sys;
 
+use std::fmt;
+
 #[derive(Debug,Clone,PartialEq)]
 pub struct Exprs {
-    pub exprs: Vec<Box<Expr>>
+    pub exprs: Vec<Box<Expr>>,
 }
 
 #[derive(Debug,Clone,PartialEq)]
@@ -21,17 +23,49 @@ pub enum Expr {
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub enum BinaryOpCode {
-    Add, Sub, Mul, Div,
-    Lt, Le, Gt, Ge, Eq, Ne
+    Add,
+    Sub,
+    Mul,
+    Div,
+
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Eq,
+    Ne,
+}
+
+impl fmt::Display for BinaryOpCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::BinaryOpCode::*;
+
+        write!(f,
+               "{}",
+               match self {
+                   &Add => "+",
+                   &Sub => "-",
+                   &Mul => "*",
+                   &Div => "/",
+
+                   &Lt => "<",
+                   &Le => "<=",
+                   &Gt => ">",
+                   &Ge => ">=",
+                   &Eq => "=",
+                   &Ne => "<>",
+               })
+    }
 }
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub enum UnaryOpCode {
-    Plus, Minus
+    Plus,
+    Minus,
 }
 
 #[derive(Debug,Clone,PartialEq)]
 pub struct Binding {
     pub variable: String,
-    pub value: Expr
+    pub value: Expr,
 }

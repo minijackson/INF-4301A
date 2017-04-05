@@ -41,10 +41,10 @@ macro_rules! define_arit_operator {
         pub fn $func_name(args: Vec<Value>) -> Value {
             use self::Value::*;
 
-            match (args.get(0).expect("Wrong number of arguments"), args.get(1).expect("Wrong number of arguments")) {
+            match (&args[0], &args[1]) {
                 (&Integer(lhs), &Integer(rhs)) => Integer(lhs $symbol rhs),
                 (&Float(lhs), &Float(rhs)) => Float(lhs $symbol rhs),
-                (lhs, rhs) => panic!("Wrong type of arguments in `{}`: {:?}, {:?}", stringify!($func_name), lhs, rhs)
+                (lhs, rhs) => unreachable!("Wrong type of arguments in `{}`: {:?}, {:?}", stringify!($func_name), lhs, rhs)
             }
         }
 
@@ -57,10 +57,10 @@ macro_rules! define_cmp_operator {
         pub fn $func_name(args: Vec<Value>) -> Value {
             use self::Value::*;
 
-            match (args.get(0).expect("Wrong number of arguments"), args.get(1).expect("Wrong number of arguments")) {
+            match (&args[0], &args[1]) {
                 (&Integer(lhs), &Integer(rhs)) => Bool(lhs $symbol rhs),
                 (&Float(lhs), &Float(rhs)) => Bool(lhs $symbol rhs),
-                (lhs, rhs) => panic!("Wrong type of arguments in `{}`: {:?}, {:?}", stringify!($func_name), lhs, rhs)
+                (lhs, rhs) => unreachable!("Wrong type of arguments in `{}`: {:?}, {:?}", stringify!($func_name), lhs, rhs)
             }
         }
     }
