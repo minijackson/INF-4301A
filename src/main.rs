@@ -6,7 +6,7 @@ pub mod processing;
 pub mod repl;
 pub mod type_sys;
 
-use processing::{Evaluate,Print};
+use processing::{Evaluate,Print,TypeCheck};
 use env::{Environment,ValueInfo};
 
 extern crate itertools;
@@ -38,8 +38,9 @@ fn evaluate_file(filename: String) {
     do_the_thing(exprs, &mut Environment::new());
 }
 
-fn do_the_thing(exprs: ast::Exprs, mut bindings: &mut Environment<ValueInfo>) {
+fn do_the_thing(mut exprs: ast::Exprs, mut bindings: &mut Environment<ValueInfo>) {
     println!("Result: {:?}", exprs);
     println!("===== Pretty printing =====\n{}===========================", &exprs.pretty_print(0));
+    println!("Final type (type checker): {:?}", &mut exprs.type_check(&mut Environment::new()));
     println!("Final value: {:?}", &exprs.evaluate(&mut bindings));
 }

@@ -21,20 +21,6 @@ macro_rules! get_args {
     };
 }
 
-macro_rules! define_operator {
-    ( $symbol:tt, $func_name:ident, $param_type:path, $ret_type:path ) => {
-
-        #[allow(unused_assignments)]
-        pub fn $func_name(args: Vec<Value>) -> Value {
-            use self::Value::*;
-
-            let (lhs, rhs) = get_args!(args, $param_type, $param_type);
-            $ret_type(lhs $symbol rhs)
-        }
-
-    }
-}
-
 macro_rules! define_arit_operator {
     ( $symbol:tt, $func_name:ident) => {
 
@@ -66,9 +52,12 @@ macro_rules! define_cmp_operator {
     }
 }
 
+//===================
+//== Builtin funcs ==
+//===================
+
 pub fn print(args: Vec<Value>) -> Value {
     use self::Value::*;
-    //let (val,) = get_args!(args, Integer);
     let val = args.get(0).expect("Wrong number of arguments");
     println!("=> {}", val);
     Void

@@ -28,9 +28,9 @@ impl Print for Expr {
                 format!("(\n{}{})", fmt_exprs, ws)
             }
 
-            &Let(ref assignments, ref exprs) => {
+            &Let(ref bindings, ref exprs) => {
                 format!("let\n{}{}in\n{}{}end",
-                        assignments.iter()
+                        bindings.iter()
                             .map(|binding| binding.pretty_print(indent + 2))
                             .join(""),
                         ws,

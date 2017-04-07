@@ -1,13 +1,38 @@
 use ast::Binding;
 use builtins;
-use type_sys::{Value,Type};
+use type_sys::{Value, Type};
 
 use std::collections::{LinkedList, HashMap};
 use std::collections::hash_map::Entry;
 
 pub struct Environment<T> {
     scopes: LinkedList<HashMap<String, T>>,
-    builtins: HashMap<String, Box<FnMut(Vec<Value>) -> Value + 'static>>,
+    builtins: HashMap<String, FunctionInfo>,
+}
+
+pub struct FunctionInfo {
+    pub signatures: HashMap<Vec<Type>, Type>,
+    pub call: Box<FnMut(Vec<Value>) -> Value + 'static>,
+}
+
+impl FunctionInfo {
+    pub fn new(signatures: HashMap<Vec<Type>, Type>,
+               call: Box<FnMut(Vec<Value>) -> Value>)
+               -> Self {
+        FunctionInfo {
+            signatures: signatures,
+            call: call,
+        }
+    }
+
+    pub fn is_defined_for(&self, arg_types: &Vec<Type>) -> bool {
+        self.signatures.contains_key(arg_types)
+    }
+
+    pub fn return_type(&self, arg_types: &Vec<Type>) -> Result<&Type, ()> {
+        self.signatures.get(arg_types).ok_or(())
+    }
+
 }
 
 pub struct TypeInfo {
@@ -26,30 +51,58 @@ pub struct DeclarationInfo {
 
 impl<T> Environment<T> {
     pub fn new() -> Self {
+        use self::Type::*;
+
+        macro_rules! quick_hashmap {
+            ( $( $key:expr => $value:expr ),* ) => {
+                {
+                    let mut rv = HashMap::new();
+                    $(rv.insert($key, $value);)*
+                    rv
+                }
+            }
+        }
+
+        let arit_sig = quick_hashmap!(
+                    vec![Integer, Integer] => Integer,
+                    vec![Float, Float] => Float
+                    );
+
+        let cmp_sig = quick_hashmap!(
+                    vec![Integer, Integer] => Bool,
+                    vec![Float, Float] => Bool
+                    );
+
+        let unary_sig = quick_hashmap!(
+                    vec![Integer] => Integer,
+                    vec![Float] => Float
+                    );
+
+        let print_sig = quick_hashmap!(
+                    vec![Integer] => Void,
+                    vec![Float] => Void
+                    );
+
         Self {
             scopes: LinkedList::new(),
-            builtins: {
-                let mut rv: HashMap<String, Box<FnMut(Vec<Value>) -> Value + 'static>> = HashMap::new();
+            builtins: quick_hashmap!(
+                "+".to_string() => FunctionInfo::new(arit_sig.clone(), Box::new(builtins::plus)),
+                "-".to_string() => FunctionInfo::new(arit_sig.clone(), Box::new(builtins::minus)),
+                "*".to_string() => FunctionInfo::new(arit_sig.clone(), Box::new(builtins::mul)),
+                "/".to_string() => FunctionInfo::new(arit_sig,         Box::new(builtins::div)),
 
-                rv.insert(String::from("+"), Box::new(builtins::plus));
-                rv.insert(String::from("-"), Box::new(builtins::minus));
-                rv.insert(String::from("*"), Box::new(builtins::mul));
-                rv.insert(String::from("/"), Box::new(builtins::div));
+                "<".to_string()  => FunctionInfo::new(cmp_sig.clone(), Box::new(builtins::lower)),
+                "<=".to_string() => FunctionInfo::new(cmp_sig.clone(), Box::new(builtins::lower_eq)),
+                ">".to_string()  => FunctionInfo::new(cmp_sig.clone(), Box::new(builtins::greater)),
+                ">=".to_string() => FunctionInfo::new(cmp_sig.clone(), Box::new(builtins::greater_eq)),
+                "=".to_string()  => FunctionInfo::new(cmp_sig.clone(), Box::new(builtins::equal)),
+                "<>".to_string() => FunctionInfo::new(cmp_sig,         Box::new(builtins::not_equal)),
 
-                rv.insert(String::from("<"), Box::new(builtins::lower));
-                rv.insert(String::from("<="), Box::new(builtins::lower_eq));
-                rv.insert(String::from(">"), Box::new(builtins::greater));
-                rv.insert(String::from(">="), Box::new(builtins::greater_eq));
-                rv.insert(String::from("="), Box::new(builtins::equal));
-                rv.insert(String::from("<>"), Box::new(builtins::not_equal));
+                "un+".to_string() => FunctionInfo::new(unary_sig.clone(), Box::new(builtins::un_plus)),
+                "un-".to_string() => FunctionInfo::new(unary_sig,         Box::new(builtins::un_minus)),
 
-                rv.insert(String::from("un+"), Box::new(builtins::un_plus));
-                rv.insert(String::from("un-"), Box::new(builtins::un_minus));
-
-                rv.insert(String::from("print"), Box::new(builtins::print));
-
-                rv
-            }
+                "print".to_string() => FunctionInfo::new(print_sig, Box::new(builtins::print))
+                ),
         }
     }
 
@@ -91,18 +144,23 @@ impl<T> Environment<T> {
             .map(|scope| scope.get_mut(name).unwrap())
     }
 
-    pub fn call_builtin(&mut self, name: &String, args: Vec<Value>) -> Value {
-        self.builtins.get_mut(name).expect("No such function")(args)
+    pub fn get_builtin(&self, name: &String) -> Option<&FunctionInfo> {
+        self.builtins.get(name)
     }
 
+    pub fn get_builtin_mut(&mut self, name: &String) -> Option<&mut FunctionInfo> {
+        self.builtins.get_mut(name)
+    }
+
+    pub fn call_builtin(&mut self, name: &String, args: Vec<Value>) -> Value {
+        (self.builtins.get_mut(name).expect("No such function").call)(args)
+    }
 }
 
 impl Environment<ValueInfo> {
-
     pub fn assign(&mut self, name: &String, value: Value) {
         self.get_var_mut(name)
             .expect(format!("Could not find variable {} in current scope", name).as_str())
             .value = value;
     }
-
 }

@@ -19,15 +19,14 @@ impl Evaluate for Exprs {
 impl Evaluate for Expr {
     fn evaluate(&self, env: &mut Environment<ValueInfo>) -> Value {
         use ast::Expr::*;
-        use ast::UnaryOpCode::*;
         use type_sys;
 
         match self {
             &Grouping(ref exprs) => exprs.evaluate(env),
 
-            &Let(ref assignments, ref exprs) => {
+            &Let(ref bindings, ref exprs) => {
                 env.enter_scope();
-                for binding in assignments.iter() {
+                for binding in bindings.iter() {
                     let value = binding.value.evaluate(env);
                     env.declare(binding.variable.clone(),
                                      ValueInfo {
@@ -74,8 +73,8 @@ impl Evaluate for Expr {
                 env.call_builtin(&op.to_string(), args)
             }
 
-            &UnaryOp(ref exp, ref op) => {
-                let args = vec![exp.evaluate(env)];
+            &UnaryOp(ref expr, ref op) => {
+                let args = vec![expr.evaluate(env)];
                 env.call_builtin(&format!("un{}", op.to_string()), args)
             }
 
