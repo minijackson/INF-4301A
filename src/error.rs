@@ -83,6 +83,42 @@ pub enum TypeCheckError {
     UndefinedFunction(UndefinedFunctionError),
 }
 
+impl From<MismatchedTypesError> for TypeCheckError {
+    fn from(err: MismatchedTypesError) -> Self {
+        TypeCheckError::MismatchedTypes(err)
+    }
+}
+
+impl From<IncompatibleArmTypesError> for TypeCheckError {
+    fn from(err: IncompatibleArmTypesError) -> Self {
+        TypeCheckError::IncompatibleArmTypes(err)
+    }
+}
+
+impl From<NoSuchSignatureError> for TypeCheckError {
+    fn from(err: NoSuchSignatureError) -> Self {
+        TypeCheckError::NoSuchSignature(err)
+    }
+}
+
+impl From<UnboundedVarError> for TypeCheckError {
+    fn from(err: UnboundedVarError) -> Self {
+        TypeCheckError::UnboundedVar(err)
+    }
+}
+
+impl From<AlreadyDeclaredError> for TypeCheckError {
+    fn from(err: AlreadyDeclaredError) -> Self {
+        TypeCheckError::AlreadyDeclared(err)
+    }
+}
+
+impl From<UndefinedFunctionError> for TypeCheckError {
+    fn from(err: UndefinedFunctionError) -> Self {
+        TypeCheckError::UndefinedFunction(err)
+    }
+}
+
 #[derive(Debug)]
 pub struct MismatchedTypesError {
     pub expected: Type,

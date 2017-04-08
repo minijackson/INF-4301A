@@ -33,8 +33,7 @@ impl TypeCheck for Expr {
                                  TypeInfo {
                                      type_,
                                      declaration: binding.clone(),
-                                 })
-                        .map_err(TypeCheckError::AlreadyDeclared)?;
+                                 })?;
                 }
 
                 let final_type = exprs.type_check(env)?;
@@ -45,7 +44,7 @@ impl TypeCheck for Expr {
             &mut Assign(ref name, ref mut expr) => {
                 let assign_type = expr.type_check(env)?;
 
-                let var_info = env.get_var(name).map_err(TypeCheckError::UnboundedVar)?;
+                let var_info = env.get_var(name)?;
                 let declared_type = var_info.type_;
 
                 if declared_type != assign_type {
@@ -67,11 +66,10 @@ impl TypeCheck for Expr {
                     .map(|ref mut expr| expr.type_check(env))
                     .collect::<Result<_, _>>()?;
 
-                env.get_builtin(name)
-                    .map_err(TypeCheckError::UndefinedFunction)?
+                env.get_builtin(name)?
                     .return_type(&arg_types)
-                    .map_err(TypeCheckError::NoSuchSignature)
                     .map(|return_type| *return_type)
+                    .map_err(TypeCheckError::NoSuchSignature)
             }
 
             &mut If(ref mut expr, ref mut true_branch, ref mut false_branch) => {
@@ -106,28 +104,26 @@ impl TypeCheck for Expr {
             &mut BinaryOp(ref mut lhs, ref mut rhs, ref op) => {
                 let arg_types = vec![lhs.type_check(env)?, rhs.type_check(env)?];
 
-                env.get_builtin(&op.to_string())
-                    .map_err(TypeCheckError::UndefinedFunction)?
+                env.get_builtin(&op.to_string())?
                     .return_type(&arg_types)
-                    .map_err(TypeCheckError::NoSuchSignature)
                     .map(|return_type| *return_type)
+                    .map_err(TypeCheckError::NoSuchSignature)
             }
 
             &mut UnaryOp(ref mut expr, ref op) => {
                 let arg_types = vec![expr.type_check(env)?];
 
 
-                env.get_builtin(&format!("un{}", op.to_string()))
-                    .map_err(TypeCheckError::UndefinedFunction)?
+                env.get_builtin(&format!("un{}", op.to_string()))?
                     .return_type(&arg_types)
-                    .map_err(TypeCheckError::NoSuchSignature)
                     .map(|return_type| *return_type)
+                    .map_err(TypeCheckError::NoSuchSignature)
             }
 
             &mut Variable(ref name) => {
                 env.get_var(name)
-                    .map_err(TypeCheckError::UnboundedVar)
                     .map(|var| var.type_)
+                    .map_err(TypeCheckError::UnboundedVar)
             }
 
             &mut Value(ref value) => Ok(value.get_type()),
