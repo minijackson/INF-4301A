@@ -29,10 +29,11 @@ impl Evaluate for Expr {
                 for binding in bindings.iter() {
                     let value = binding.value.evaluate(env);
                     env.declare(binding.variable.clone(),
-                                     ValueInfo {
-                                         value: value,
-                                         declaration: binding.clone(),
-                                     });
+                                 ValueInfo {
+                                     value: value,
+                                     declaration: binding.clone(),
+                                 })
+                        .unwrap();
                 }
 
                 let rv = exprs.evaluate(env);
@@ -54,7 +55,7 @@ impl Evaluate for Expr {
             }
 
             &If(ref cond, ref true_branch, ref false_branch) => {
-                if cond.evaluate(env).truthy() {
+                if cond.evaluate(env).truthy().unwrap() {
                     true_branch.evaluate(env)
                 } else {
                     false_branch.evaluate(env)
@@ -62,7 +63,7 @@ impl Evaluate for Expr {
             }
 
             &While(ref cond, ref expr) => {
-                while cond.evaluate(env).truthy() {
+                while cond.evaluate(env).truthy().unwrap() {
                     expr.evaluate(env);
                 }
                 type_sys::Value::Void

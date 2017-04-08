@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod builtins;
 pub mod env;
+pub mod error;
 pub mod parser;
 pub mod processing;
 pub mod repl;
@@ -41,6 +42,6 @@ fn evaluate_file(filename: String) {
 fn do_the_thing(mut exprs: ast::Exprs, mut bindings: &mut Environment<ValueInfo>) {
     println!("Result: {:?}", exprs);
     println!("===== Pretty printing =====\n{}===========================", &exprs.pretty_print(0));
-    println!("Final type (type checker): {:?}", &mut exprs.type_check(&mut Environment::new()));
+    println!("Final type (type checker): {:?}", &mut exprs.type_check(&mut Environment::new()).unwrap());
     println!("Final value: {:?}", &exprs.evaluate(&mut bindings));
 }
