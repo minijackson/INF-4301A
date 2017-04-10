@@ -39,11 +39,11 @@ fn evaluate_file(filename: String) {
     match parse_expressions(content.as_str()) {
         Ok(exprs) => {
             if let Err(err) = do_the_thing(exprs, &mut Environment::new()) {
-                print_error(&filename, Box::new(err));
+                print_error(&filename, &content, err);
             }
         }
         Err(err) => {
-            print_error(&filename, Box::new(err));
+            print_error(&filename, &content, err);
         }
     }
 }

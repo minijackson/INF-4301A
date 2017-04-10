@@ -10,28 +10,74 @@ use std::fmt;
 use std::error::Error;
 use std::io::{stderr, Write};
 
-pub fn print_error<'a>(filename: &str, err: Box<Error + 'a>) {
+pub fn print_error<T>(filename: &str, input: &str, err: T) where T: Error + Span {
     let mut t = term::stderr().unwrap();
     t.fg(term::color::BRIGHT_RED).unwrap();
     t.attr(term::Attr::Bold).unwrap();
+
     writeln!(&mut stderr(),
-             "While processing \"{}\"\n{}: {}\n",
+             "While processing \"{}\"\n{}:\n",
              filename,
-             err.description(),
-             err)
+             err.description())
             .unwrap();
+
+    let (mut start, end) = err.span();
+    let span_len = end - start;
+    let (offset, line) = extract_line(input, start);
+
+    start -= offset;
+
+    writeln!(&mut stderr(), "  {}", line).unwrap();
+    writeln!(&mut stderr(), "  {}{}~~~ {}", " ".repeat(start), "^".repeat(span_len), err).unwrap();
+
     t.reset().unwrap();
+}
+
+fn extract_line<'a>(input: &'a str, pos: usize) -> (usize, &'a str) {
+    let mut start = pos;
+    let mut end = pos;
+
+    while let Some(ch) = input.chars().nth(start) {
+        if start == 0 {
+            break;
+        }
+        if ch == '\n' {
+            start += 1;
+            break;
+        }
+        start -= 1;
+    }
+
+    while let Some(ch) = input.chars().nth(end) {
+        if ch == '\n' {
+            break;
+        }
+        end += 1;
+    }
+
+    (start, &input[start..end])
+}
+
+pub trait Span: Send + Sync {
+    fn span(&self) -> (usize, usize);
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConversionError {
     pub from: Type,
     pub to: Type,
+    pub span: (usize, usize),
 }
 
 impl ConversionError {
-    pub fn new(from: Type, to: Type) -> Self {
-        ConversionError { from, to }
+    pub fn new(from: Type, to: Type, span: (usize, usize)) -> Self {
+        ConversionError { from, to, span }
+    }
+}
+
+impl Span for ConversionError {
+    fn span(&self) -> (usize, usize) {
+        self.span
     }
 }
 
@@ -47,11 +93,18 @@ impl fmt::Display for ConversionError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlreadyDeclaredError {
     pub name: String,
+    pub span: (usize, usize),
 }
 
 impl AlreadyDeclaredError {
-    pub fn new(name: String) -> Self {
-        AlreadyDeclaredError { name }
+    pub fn new(name: String, span: (usize, usize)) -> Self {
+        AlreadyDeclaredError { name, span }
+    }
+}
+
+impl Span for AlreadyDeclaredError {
+    fn span(&self) -> (usize, usize) {
+        self.span
     }
 }
 
@@ -76,14 +129,22 @@ impl Error for AlreadyDeclaredError {
 pub struct NoSuchSignatureError {
     pub func_name: String,
     pub arg_types: Vec<Type>,
+    pub span: (usize, usize),
 }
 
 impl NoSuchSignatureError {
-    pub fn new(func_name: String, arg_types: Vec<Type>) -> Self {
+    pub fn new(func_name: String, arg_types: Vec<Type>, span: (usize, usize)) -> Self {
         NoSuchSignatureError {
             func_name,
             arg_types,
+            span,
         }
+    }
+}
+
+impl Span for NoSuchSignatureError {
+    fn span(&self) -> (usize, usize) {
+        self.span
     }
 }
 
@@ -107,11 +168,18 @@ impl Error for NoSuchSignatureError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnboundedVarError {
     pub name: String,
+    pub span: (usize, usize),
 }
 
 impl UnboundedVarError {
-    pub fn new(name: String) -> Self {
-        UnboundedVarError { name }
+    pub fn new(name: String, span: (usize, usize)) -> Self {
+        UnboundedVarError { name, span }
+    }
+}
+
+impl Span for UnboundedVarError {
+    fn span(&self) -> (usize, usize) {
+        self.span
     }
 }
 
@@ -134,11 +202,18 @@ impl Error for UnboundedVarError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UndefinedFunctionError {
     pub name: String,
+    pub span: (usize, usize),
 }
 
 impl UndefinedFunctionError {
-    pub fn new(name: String) -> Self {
-        UndefinedFunctionError { name }
+    pub fn new(name: String, span: (usize, usize)) -> Self {
+        UndefinedFunctionError { name, span }
+    }
+}
+
+impl Span for UndefinedFunctionError {
+    fn span(&self) -> (usize, usize) {
+        self.span
     }
 }
 
@@ -166,6 +241,21 @@ pub enum TypeCheckError {
     UnboundedVar(UnboundedVarError),
     AlreadyDeclared(AlreadyDeclaredError),
     UndefinedFunction(UndefinedFunctionError),
+}
+
+impl Span for TypeCheckError {
+    fn span(&self) -> (usize, usize) {
+        use self::TypeCheckError::*;
+
+        match *self {
+            MismatchedTypes(ref err) => err.span(),
+            IncompatibleArmTypes(ref err) => err.span(),
+            NoSuchSignature(ref err) => err.span(),
+            UnboundedVar(ref err) => err.span(),
+            AlreadyDeclared(ref err) => err.span(),
+            UndefinedFunction(ref err) => err.span(),
+        }
+    }
 }
 
 impl fmt::Display for TypeCheckError {
@@ -253,23 +343,32 @@ pub struct MismatchedTypesError {
     pub got: Type,
     // TODO: make that a reference
     pub binding: Option<Binding>,
+    pub span: (usize, usize),
 }
 
 impl MismatchedTypesError {
-    pub fn new(expected: Type, got: Type) -> Self {
+    pub fn new(expected: Type, got: Type, span: (usize, usize)) -> Self {
         MismatchedTypesError {
             expected,
             got,
             binding: None,
+            span,
         }
     }
 
-    pub fn from_binding(binding: Binding, expected: Type, got: Type) -> Self {
+    pub fn from_binding(binding: Binding, expected: Type, got: Type, span: (usize, usize)) -> Self {
         MismatchedTypesError {
             expected,
             got,
             binding: Some(binding),
+            span,
         }
+    }
+}
+
+impl Span for MismatchedTypesError {
+    fn span(&self) -> (usize, usize) {
+        self.span
     }
 }
 
@@ -294,11 +393,18 @@ impl Error for MismatchedTypesError {
 pub struct IncompatibleArmTypesError {
     pub expected: Type,
     pub got: Type,
+    pub span: (usize, usize),
 }
 
 impl IncompatibleArmTypesError {
-    pub fn new(expected: Type, got: Type) -> Self {
-        IncompatibleArmTypesError { expected, got }
+    pub fn new(expected: Type, got: Type, span: (usize, usize)) -> Self {
+        IncompatibleArmTypesError { expected, got, span }
+    }
+}
+
+impl Span for IncompatibleArmTypesError {
+    fn span(&self) -> (usize, usize) {
+        self.span
     }
 }
 
@@ -335,6 +441,19 @@ pub enum ParseError<'a> {
     ExtraToken { token: (usize, (usize, &'a str), usize), },
 }
 
+impl<'a> Span for ParseError<'a> {
+    fn span(&self) -> (usize, usize) {
+        use self::ParseError::*;
+
+        match *self {
+            InvalidToken { location } => (location, location + 1),
+            UnrecognizedToken { token: Some((start, _, end)), expected: _ } => (start, end),
+            UnrecognizedToken { token: None, expected: _ } => panic!("TODO"),
+            ExtraToken { token: (start, _, end) } => (start, end),
+        }
+    }
+}
+
 impl<'a> From<OrigPopParseError<'a>> for ParseError<'a> {
     fn from(err: OrigPopParseError<'a>) -> Self {
         match err {
@@ -355,8 +474,8 @@ impl<'a> fmt::Display for ParseError<'a> {
         use self::ParseError::*;
 
         match *self {
-            InvalidToken { ref location } => {
-                write!(f, "Invalid token found at position {}", location)
+            InvalidToken { location: _ } => {
+                write!(f, "Invalid token")
             }
             UnrecognizedToken {
                 ref token,
@@ -364,8 +483,8 @@ impl<'a> fmt::Display for ParseError<'a> {
             } => {
                 match *token {
                     None => write!(f, "Unexpected EOF")?,
-                    Some((ref start, (_, ref token), ref end)) => {
-                        write!(f, "Unexpected \"{}\" found at {}-{}", token, start, end)?
+                    Some((_, (_, ref token), _)) => {
+                        write!(f, "Unexpected \"{}\"", token)?
                     }
                 }
                 if !expected.is_empty() {
@@ -373,8 +492,8 @@ impl<'a> fmt::Display for ParseError<'a> {
                 }
                 Ok(())
             }
-            ExtraToken { token: (ref start, (_, ref token), ref end) } => {
-                write!(f, "Extra token `{}` found at {}:{}", token, start, end)
+            ExtraToken { token: (_, (_, ref token), _) } => {
+                write!(f, "Extra token `{}`", token)
             }
         }
     }
@@ -394,6 +513,17 @@ impl<'a> Error for ParseError<'a> {
 pub enum REPLError<'a> {
     Readline(ReadlineError),
     Parse(ParseError<'a>),
+}
+
+impl<'a> Span for REPLError<'a> {
+    fn span(&self) -> (usize, usize) {
+        use self::REPLError::*;
+
+        match *self {
+            Readline(_) => panic!("TODO"),
+            Parse(ref err) => err.span(),
+        }
+    }
 }
 
 impl<'a> fmt::Display for REPLError<'a> {

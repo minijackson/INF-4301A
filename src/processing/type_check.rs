@@ -53,7 +53,9 @@ impl TypeCheck for Expr {
                             MismatchedTypesError::from_binding(
                                 var_info.declaration.clone(),
                                 declared_type,
-                                assign_type)
+                                assign_type,
+                                // TODO
+                                (0, 0))
                             )
                         );
                 }
@@ -75,7 +77,9 @@ impl TypeCheck for Expr {
             &mut If(ref mut expr, ref mut true_branch, ref mut false_branch) => {
                 if expr.type_check(env)? == Void {
                     return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Bool,
-                                                                                         Void)));
+                                                                                         Void,
+                                                                                         // TODO
+                                                                                         (0, 0))));
                 }
 
                 let true_branch_type = true_branch.type_check(env)?;
@@ -84,7 +88,9 @@ impl TypeCheck for Expr {
                 if true_branch_type != false_branch_type {
                     return Err(TypeCheckError::IncompatibleArmTypes(IncompatibleArmTypesError::new(
                            true_branch_type,
-                           false_branch_type)));
+                           false_branch_type,
+                           // TODO
+                           (0, 0))));
                 }
 
                 Ok(true_branch_type)
@@ -93,7 +99,9 @@ impl TypeCheck for Expr {
             &mut While(ref mut cond, ref mut expr) => {
                 if cond.type_check(env)? == Void {
                     return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Bool,
-                                                                                         Void)));
+                                                                                         Void,
+                                                                                         // TODO
+                                                                                         (0, 0))));
                 }
 
                 expr.type_check(env)?;

@@ -32,8 +32,9 @@ impl Value {
             Float(_) => Ok(true),
             Bool(false) => Ok(false),
             Bool(true) => Ok(true),
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Bool)),
-            Void => Err(ConversionError::new(Type::Void, Type::Bool)),
+            // TODO
+            Str(_) => Err(ConversionError::new(Type::Str, Type::Bool, (0, 0))),
+            Void => Err(ConversionError::new(Type::Void, Type::Bool, (0, 0))),
         }
     }
 
@@ -56,8 +57,9 @@ impl Value {
             Integer(_) => Ok(self),
             Float(val) => Ok(Integer(val as i32)),
             Bool(val) => Ok(Integer(val as i32)),
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Integer)),
-            Void => Err(ConversionError::new(Type::Void, Type::Integer)),
+            // TODO
+            Str(_) => Err(ConversionError::new(Type::Str, Type::Integer, (0, 0))),
+            Void => Err(ConversionError::new(Type::Void, Type::Integer, (0, 0))),
         }
     }
 
@@ -68,8 +70,9 @@ impl Value {
             Integer(val) => Ok(Float(val as f32)),
             Float(_) => Ok(self),
             Bool(val) => Ok(Float(if val { 1f32 } else { 0f32 })),
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Float)),
-            Void => Err(ConversionError::new(Type::Void, Type::Float)),
+            // TODO
+            Str(_) => Err(ConversionError::new(Type::Str, Type::Float, (0, 0))),
+            Void => Err(ConversionError::new(Type::Void, Type::Float, (0, 0))),
         }
     }
 }

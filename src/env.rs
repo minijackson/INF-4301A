@@ -36,7 +36,8 @@ impl FunctionInfo {
     pub fn return_type(&self, arg_types: &Vec<Type>) -> Result<&Type, NoSuchSignatureError> {
         self.signatures
             .get(arg_types)
-            .ok_or(NoSuchSignatureError::new(self.name.clone(), arg_types.clone()))
+            // TODO
+            .ok_or(NoSuchSignatureError::new(self.name.clone(), arg_types.clone(), (0, 0)))
     }
 }
 
@@ -136,7 +137,8 @@ impl<T> Environment<T> {
                   .expect("Trying to declare a variable out of scope")
                   .entry(name.clone()) {
 
-            Entry::Occupied(_) => Err(AlreadyDeclaredError::new(name)),
+            // TODO
+            Entry::Occupied(_) => Err(AlreadyDeclaredError::new(name, (0, 0))),
 
             Entry::Vacant(vacant_entry) => {
                 vacant_entry.insert(info);
@@ -150,7 +152,8 @@ impl<T> Environment<T> {
             .iter()
             .find(|scope| scope.contains_key(name))
             .map(|scope| scope.get(name).unwrap())
-            .ok_or(UnboundedVarError::new(name.clone()))
+            // TODO
+            .ok_or(UnboundedVarError::new(name.clone(), (0, 0)))
     }
 
     pub fn get_var_mut(&mut self, name: &String) -> Result<&mut T, UnboundedVarError> {
@@ -158,13 +161,15 @@ impl<T> Environment<T> {
             .iter_mut()
             .find(|scope| scope.contains_key(name))
             .map(|scope| scope.get_mut(name).unwrap())
-            .ok_or(UnboundedVarError::new(name.clone()))
+            // TODO
+            .ok_or(UnboundedVarError::new(name.clone(), (0, 0)))
     }
 
     pub fn get_builtin(&self, name: &String) -> Result<&FunctionInfo, UndefinedFunctionError> {
         self.builtins
             .get(name)
-            .ok_or(UndefinedFunctionError::new(name.clone()))
+            // TODO
+            .ok_or(UndefinedFunctionError::new(name.clone(), (0, 0)))
     }
 
     pub fn get_builtin_mut(&mut self,
@@ -172,7 +177,8 @@ impl<T> Environment<T> {
                            -> Result<&mut FunctionInfo, UndefinedFunctionError> {
         self.builtins
             .get_mut(name)
-            .ok_or(UndefinedFunctionError::new(name.clone()))
+            // TODO
+            .ok_or(UndefinedFunctionError::new(name.clone(), (0, 0)))
     }
 
     pub fn call_builtin(&mut self, name: &String, args: Vec<Value>) -> Value {
