@@ -1,3 +1,4 @@
+use std::char;
 use std::fmt;
 
 use error::ConversionError;
@@ -97,6 +98,21 @@ pub fn unescape_str(input: String) -> String {
                      ch
                  } else {
                      match chars.next() {
+                         Some('x') => {
+                             chars
+                                 .by_ref()
+                                 .take(2)
+                                 .fold(0u8,
+                                       |acc, c| acc * 16 + c.to_digit(16).unwrap() as u8) as char
+                         }
+                         Some('u') => {
+                             let val = chars
+                                 .by_ref()
+                                 .take(4)
+                                 .fold(0,
+                                       |acc, c| acc * 16 + c.to_digit(16).unwrap());
+                             char::from_u32(val).unwrap()
+                         }
                          Some('n') => '\n',
                          Some('r') => '\r',
                          Some('t') => '\t',
