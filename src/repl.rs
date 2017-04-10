@@ -13,7 +13,6 @@ use rustyline::Editor;
 use rustyline::completion::{extract_word, Completer};
 
 use std::collections::BTreeSet;
-use std::process;
 
 pub fn start() {
     let mut rl = Editor::<ParseCompleter>::new();
@@ -56,7 +55,6 @@ pub fn start() {
 
                     Err(thing) => {
                         handle_error("<command-line>", Box::new(thing));
-                        process::exit(1);
                     }
                 }
 
@@ -81,19 +79,24 @@ fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
 
         match rl.readline("  ...> ") {
             Ok(line) => {
+                let previous_attempt_len = partial_input.len();
                 *partial_input += line.as_str();
 
                 match parse_expressions(partial_input) {
                     Ok(expr) => return Ok(expr),
-                    Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => (),
+                    Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => continue,
                     Err(err) => {
-                        handle_error("<command-line>", Box::new(err));
-                        process::exit(1);
                         // See: https://github.com/rust-lang/rust/issues/40307
                         //return Err(REPLError::Parse(err));
+
+                        handle_error("<command-line>", Box::new(err));
                     }
                 }
 
+                // Restore previous attempt to prevent further errors.
+                // Cannot do it inside the match above because partial_input
+                // would be still borrowed.
+                partial_input.truncate(previous_attempt_len);
             }
 
             Err(ReadlineError::Interrupted) => continue,
