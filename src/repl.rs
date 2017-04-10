@@ -2,9 +2,10 @@ use super::do_the_thing;
 
 use ast;
 use env::Environment;
+use error::{handle_error, REPLError, ParseError};
 use parser;
 
-use lalrpop_util::ParseError;
+use lalrpop_util::ParseError as PopParseError;
 
 use rustyline;
 use rustyline::error::ReadlineError;
@@ -12,6 +13,7 @@ use rustyline::Editor;
 use rustyline::completion::{extract_word, Completer};
 
 use std::collections::BTreeSet;
+use std::process;
 
 pub fn start() {
     let mut rl = Editor::<ParseCompleter>::new();
@@ -29,21 +31,28 @@ pub fn start() {
 
         match readline {
             Ok(line) => {
-                let res = parser::parse_Expressions(line.as_str());
-
-                match res {
+                match parse_expressions(line.as_str()) {
                     Ok(exprs) => {
                         rl.add_history_entry(&line);
                         do_the_thing(exprs, &mut bindings);
                     }
-                    Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => {
-                        let exprs = multiline(&mut rl, line.clone());
-                        do_the_thing(exprs, &mut bindings);
-                        // Restore the default completer.
-                        rl.set_completer(Some(ParseCompleter::default()));
+
+                    Err(ParseError::UnfinishedExpression) => {
+                        let mut partial_input = line.clone();
+                        match multiline_loop(&mut rl, &mut partial_input) {
+                            Ok(exprs) => {
+                                do_the_thing(exprs, &mut bindings);
+                                // Restore the default completer.
+                                rl.set_completer(Some(ParseCompleter::default()));
+                            }
+                            Err(REPLError::Readline(ReadlineError::Eof)) => {}
+                            Err(err) => handle_error("<command-line>", Box::new(err)),
+                        }
                     }
+
                     Err(thing) => {
-                        panic!("Parse error: {:?}", thing);
+                        handle_error("<command-line>", Box::new(thing));
+                        process::exit(1);
                     }
                 }
 
@@ -59,27 +68,45 @@ pub fn start() {
     }
 }
 
-fn multiline(mut rl: &mut Editor<ParseCompleter>, mut partial_input: String) -> ast::Exprs {
-    partial_input += "\n";
-    rl.set_completer(Some(ParseCompleter::from_context(partial_input.clone())));
-    match rl.readline("  ...> ") {
-        Ok(line) => {
-            partial_input += line.as_str();
-            match parser::parse_Expressions(partial_input.clone().as_str()) {
-                Ok(exprs) => exprs,
-                Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => {
-                    multiline(&mut rl, partial_input)
-                }
-                Err(something) => panic!("Error, error! {:?}", something),
-            }
-        }
+fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
+                      mut partial_input: &'a mut String)
+                      -> Result<ast::Exprs, REPLError<'a>> {
+    loop {
+        *partial_input += "\n";
+        rl.set_completer(Some(ParseCompleter::from_context(partial_input.clone())));
 
-        Err(ReadlineError::Interrupted) => multiline(&mut rl, partial_input),
-        Err(ReadlineError::Eof) => panic!("I don't know what to do"),
-        Err(err) => {
-            println!("Error: {:?}", err);
-            panic!("I don't know what to do");
+        match rl.readline("  ...> ") {
+            Ok(line) => {
+                *partial_input += line.as_str();
+
+                match parse_expressions(partial_input) {
+                    Ok(expr) => return Ok(expr),
+                    Err(ParseError::UnfinishedExpression) => (),
+                    Err(err) => {
+                        handle_error("<command-line>", Box::new(err));
+                        process::exit(1);
+                        // See: https://github.com/rust-lang/rust/issues/40307
+                        //return Err(REPLError::Parse(err));
+                    }
+                }
+
+            }
+
+            Err(ReadlineError::Interrupted) => continue,
+            Err(ReadlineError::Eof) => return Err(REPLError::Readline(ReadlineError::Eof)),
+            Err(err) => return Err(REPLError::Readline(err)),
         }
+    }
+}
+
+fn parse_expressions<'a>(partial_input: &'a str) -> Result<ast::Exprs, ParseError<'a>> {
+    match parser::parse_Expressions(partial_input) {
+        Ok(exprs) => Ok(exprs),
+        Err(PopParseError::UnrecognizedToken {
+                token: None,
+                expected: _,
+            }) => Err(ParseError::UnfinishedExpression),
+        Err(something) => Err(ParseError::PopParse(From::from(something.clone()))),
     }
 }
 
@@ -97,7 +124,7 @@ struct ParseCompleter {
 impl ParseCompleter {
     pub fn new() -> Self {
         ParseCompleter {
-            context: String::from(""),
+            context: "".to_string(),
             breaks: BREAKS.iter().cloned().collect(),
         }
     }
@@ -136,8 +163,12 @@ impl Completer for ParseCompleter {
 
         match parser::parse_Expressions(partial_input.as_str()) {
             Ok(_) => Ok((0, vec![])),
-            Err(ParseError::UnrecognizedToken { token: None, expected: candidates }) => {
-                let candidates = candidates.into_iter()
+            Err(PopParseError::UnrecognizedToken {
+                    token: None,
+                    expected: candidates,
+                }) => {
+                let candidates = candidates
+                    .into_iter()
                     .filter_map(|mut candidate| {
                         if candidate.chars().nth(0) == Some('\"') {
                             // Remove quotes
