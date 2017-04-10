@@ -1,4 +1,4 @@
-use super::do_the_thing;
+use super::{do_the_thing, parse_expressions};
 
 use ast;
 use env::Environment;
@@ -34,14 +34,18 @@ pub fn start() {
                 match parse_expressions(line.as_str()) {
                     Ok(exprs) => {
                         rl.add_history_entry(&line);
-                        do_the_thing(exprs, &mut bindings);
+                        if let Err(err) = do_the_thing(exprs, &mut bindings) {
+                            handle_error("<command-line>", Box::new(err));
+                        }
                     }
 
-                    Err(ParseError::UnfinishedExpression) => {
+                    Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => {
                         let mut partial_input = line.clone();
                         match multiline_loop(&mut rl, &mut partial_input) {
                             Ok(exprs) => {
-                                do_the_thing(exprs, &mut bindings);
+                                if let Err(err) = do_the_thing(exprs, &mut bindings) {
+                                    handle_error("<command-line>", Box::new(err));
+                                }
                                 // Restore the default completer.
                                 rl.set_completer(Some(ParseCompleter::default()));
                             }
@@ -81,7 +85,7 @@ fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
 
                 match parse_expressions(partial_input) {
                     Ok(expr) => return Ok(expr),
-                    Err(ParseError::UnfinishedExpression) => (),
+                    Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => (),
                     Err(err) => {
                         handle_error("<command-line>", Box::new(err));
                         process::exit(1);
@@ -96,17 +100,6 @@ fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
             Err(ReadlineError::Eof) => return Err(REPLError::Readline(ReadlineError::Eof)),
             Err(err) => return Err(REPLError::Readline(err)),
         }
-    }
-}
-
-fn parse_expressions<'a>(partial_input: &'a str) -> Result<ast::Exprs, ParseError<'a>> {
-    match parser::parse_Expressions(partial_input) {
-        Ok(exprs) => Ok(exprs),
-        Err(PopParseError::UnrecognizedToken {
-                token: None,
-                expected: _,
-            }) => Err(ParseError::UnfinishedExpression),
-        Err(something) => Err(ParseError::PopParse(From::from(something.clone()))),
     }
 }
 

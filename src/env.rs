@@ -158,7 +158,9 @@ impl<T> Environment<T> {
             .ok_or(UndefinedFunctionError::new(name.clone()))
     }
 
-    pub fn get_builtin_mut(&mut self, name: &String) -> Result<&mut FunctionInfo, UndefinedFunctionError> {
+    pub fn get_builtin_mut(&mut self,
+                           name: &String)
+                           -> Result<&mut FunctionInfo, UndefinedFunctionError> {
         self.builtins
             .get_mut(name)
             .ok_or(UndefinedFunctionError::new(name.clone()))
