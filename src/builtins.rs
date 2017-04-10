@@ -41,7 +41,12 @@ macro_rules! define_cmp_operator {
 //===================
 
 pub fn print(args: Vec<Value>) -> Value {
-    println!("=> {}", args[0]);
+    print!("{}", args[0]);
+    Void
+}
+
+pub fn println(args: Vec<Value>) -> Value {
+    println!("{}", args[0]);
     Void
 }
 

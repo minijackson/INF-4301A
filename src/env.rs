@@ -114,7 +114,8 @@ impl<T> Environment<T> {
                 "un+".to_string() => FunctionInfo::new("un+".to_string(), unary_sig.clone(), Box::new(builtins::un_plus)),
                 "un-".to_string() => FunctionInfo::new("un-".to_string(), unary_sig,         Box::new(builtins::un_minus)),
 
-                "print".to_string() => FunctionInfo::new("print".to_string(), print_sig, Box::new(builtins::print))
+                "print".to_string() => FunctionInfo::new("print".to_string(), print_sig.clone(), Box::new(builtins::print)),
+                "println".to_string() => FunctionInfo::new("println".to_string(), print_sig, Box::new(builtins::println))
                 ),
         }
     }

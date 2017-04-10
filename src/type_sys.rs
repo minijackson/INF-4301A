@@ -97,6 +97,9 @@ pub fn unescape_str(input: String) -> String {
                      ch
                  } else {
                      match chars.next() {
+                         Some('n') => '\n',
+                         Some('r') => '\r',
+                         Some('t') => '\t',
                          Some(ch) => ch,
                          None => panic!("Un-ended string"),
                      }
