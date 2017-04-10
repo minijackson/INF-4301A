@@ -4,18 +4,23 @@ use type_sys::Type;
 use itertools::Itertools;
 use lalrpop_util;
 use rustyline::error::ReadlineError;
+use term;
 
 use std::fmt;
 use std::error::Error;
 use std::io::{stderr, Write};
 
 pub fn handle_error<'a>(filename: &str, err: Box<Error + 'a>) {
+    let mut t = term::stderr().unwrap();
+    t.fg(term::color::BRIGHT_RED).unwrap();
+    t.attr(term::Attr::Bold).unwrap();
     writeln!(&mut stderr(),
              "While processing \"{}\"\n{}: {}\n",
              filename,
              err.description(),
              err)
             .unwrap();
+    t.reset().unwrap();
 }
 
 #[derive(Debug, Clone, PartialEq)]

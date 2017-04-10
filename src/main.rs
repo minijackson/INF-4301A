@@ -14,6 +14,7 @@ use error::{handle_error, ParseError, TypeCheckError};
 extern crate itertools;
 extern crate lalrpop_util;
 extern crate rustyline;
+extern crate term;
 
 use std::env::args;
 use std::fs::File;
