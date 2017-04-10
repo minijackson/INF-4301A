@@ -1,4 +1,5 @@
 use ast::*;
+use type_sys;
 
 use itertools::Itertools;
 
@@ -90,6 +91,9 @@ impl Print for Expr {
             }
 
             &Variable(ref name) => name.clone(),
+
+            // For strings, use the debug trait to add quotes
+            &Value(type_sys::Value::Str(ref value)) => format!("{:?}", value),
 
             &Value(ref value) => value.to_string(),
 
@@ -291,6 +295,8 @@ end");
         // TODO
         //perfect_coding!("10.");
         perfect_coding!("13.37");
+        perfect_coding!(r#""hello""#);
+        perfect_coding!(r#""hel\"lo""#);
     }
 
 }

@@ -68,6 +68,12 @@ impl<T> Environment<T> {
             }
         }
 
+        let plus_sig = quick_hashmap!(
+                    vec![Integer, Integer] => Integer,
+                    vec![Float, Float] => Float,
+                    vec![Str, Str] => Str
+                    );
+
         let arit_sig = quick_hashmap!(
                     vec![Integer, Integer] => Integer,
                     vec![Float, Float] => Float
@@ -75,7 +81,8 @@ impl<T> Environment<T> {
 
         let cmp_sig = quick_hashmap!(
                     vec![Integer, Integer] => Bool,
-                    vec![Float, Float] => Bool
+                    vec![Float, Float] => Bool,
+                    vec![Str, Str] => Bool
                     );
 
         let unary_sig = quick_hashmap!(
@@ -85,13 +92,14 @@ impl<T> Environment<T> {
 
         let print_sig = quick_hashmap!(
                     vec![Integer] => Void,
-                    vec![Float] => Void
+                    vec![Float] => Void,
+                    vec![Str] => Void
                     );
 
         Self {
             scopes: LinkedList::new(),
             builtins: quick_hashmap!(
-                "+".to_string() => FunctionInfo::new("+".to_string(), arit_sig.clone(), Box::new(builtins::plus)),
+                "+".to_string() => FunctionInfo::new("+".to_string(), plus_sig.clone(), Box::new(builtins::plus)),
                 "-".to_string() => FunctionInfo::new("-".to_string(), arit_sig.clone(), Box::new(builtins::minus)),
                 "*".to_string() => FunctionInfo::new("*".to_string(), arit_sig.clone(), Box::new(builtins::mul)),
                 "/".to_string() => FunctionInfo::new("/".to_string(), arit_sig,         Box::new(builtins::div)),

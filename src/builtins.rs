@@ -25,6 +25,7 @@ macro_rules! define_cmp_operator {
             match (&args[0], &args[1]) {
                 (&Integer(lhs), &Integer(rhs)) => Bool(lhs $symbol rhs),
                 (&Float(lhs), &Float(rhs)) => Bool(lhs $symbol rhs),
+                (&Str(ref lhs), &Str(ref rhs)) => Bool(lhs $symbol rhs),
                 (lhs, rhs) => unreachable!("Wrong type of arguments in `{}`: {:?}, {:?}",
                                            stringify!($func_name),
                                            lhs,
@@ -64,7 +65,17 @@ pub fn un_minus(args: Vec<Value>) -> Value {
     }
 }
 
-define_arit_operator!(+, plus);
+pub fn plus(args: Vec<Value>) -> Value {
+    match (&args[0], &args[1]) {
+        (&Integer(lhs), &Integer(rhs)) => Integer(lhs + rhs),
+        (&Float(lhs), &Float(rhs)) => Float(lhs + rhs),
+        (&Str(ref lhs), &Str(ref rhs)) => Str(lhs.clone() + rhs.as_str()),
+        (lhs, rhs) => unreachable!("Wrong type of arguments in `plus`: {:?}, {:?}",
+                                   lhs,
+                                   rhs)
+    }
+}
+
 define_arit_operator!(-, minus);
 define_arit_operator!(*, mul);
 define_arit_operator!(/, div);
