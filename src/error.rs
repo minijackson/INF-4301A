@@ -10,7 +10,7 @@ use std::fmt;
 use std::error::Error;
 use std::io::{stderr, Write};
 
-pub fn handle_error<'a>(filename: &str, err: Box<Error + 'a>) {
+pub fn print_error<'a>(filename: &str, err: Box<Error + 'a>) {
     let mut t = term::stderr().unwrap();
     t.fg(term::color::BRIGHT_RED).unwrap();
     t.attr(term::Attr::Bold).unwrap();

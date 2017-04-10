@@ -9,7 +9,7 @@ pub mod type_sys;
 
 use processing::{Evaluate,Print,TypeCheck};
 use env::{Environment,ValueInfo};
-use error::{handle_error, ParseError, TypeCheckError};
+use error::{print_error, ParseError, TypeCheckError};
 
 extern crate itertools;
 extern crate lalrpop_util;
@@ -39,11 +39,11 @@ fn evaluate_file(filename: String) {
     match parse_expressions(content.as_str()) {
         Ok(exprs) => {
             if let Err(err) = do_the_thing(exprs, &mut Environment::new()) {
-                handle_error(&filename, Box::new(err));
+                print_error(&filename, Box::new(err));
             }
         }
         Err(err) => {
-            handle_error(&filename, Box::new(err));
+            print_error(&filename, Box::new(err));
         }
     }
 }

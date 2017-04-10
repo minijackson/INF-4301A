@@ -2,7 +2,7 @@ use super::{do_the_thing, parse_expressions};
 
 use ast;
 use env::Environment;
-use error::{handle_error, REPLError, ParseError};
+use error::{print_error, REPLError, ParseError};
 use parser;
 
 use lalrpop_util::ParseError as PopParseError;
@@ -34,7 +34,7 @@ pub fn start() {
                     Ok(exprs) => {
                         rl.add_history_entry(&line);
                         if let Err(err) = do_the_thing(exprs, &mut bindings) {
-                            handle_error("<command-line>", Box::new(err));
+                            print_error("<command-line>", Box::new(err));
                         }
                     }
 
@@ -43,18 +43,18 @@ pub fn start() {
                         match multiline_loop(&mut rl, &mut partial_input) {
                             Ok(exprs) => {
                                 if let Err(err) = do_the_thing(exprs, &mut bindings) {
-                                    handle_error("<command-line>", Box::new(err));
+                                    print_error("<command-line>", Box::new(err));
                                 }
                                 // Restore the default completer.
                                 rl.set_completer(Some(ParseCompleter::default()));
                             }
                             Err(REPLError::Readline(ReadlineError::Eof)) => {}
-                            Err(err) => handle_error("<command-line>", Box::new(err)),
+                            Err(err) => print_error("<command-line>", Box::new(err)),
                         }
                     }
 
                     Err(thing) => {
-                        handle_error("<command-line>", Box::new(thing));
+                        print_error("<command-line>", Box::new(thing));
                     }
                 }
 
@@ -89,7 +89,7 @@ fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
                         // See: https://github.com/rust-lang/rust/issues/40307
                         //return Err(REPLError::Parse(err));
 
-                        handle_error("<command-line>", Box::new(err));
+                        print_error("<command-line>", Box::new(err));
                     }
                 }
 
