@@ -1,13 +1,13 @@
-use ast::Binding;
+use ast::{Binding, Span};
 use builtins;
-use error::{AlreadyDeclaredError, NoSuchSignatureError, UnboundedVarError, UndefinedFunctionError};
+use error::{AlreadyDeclaredError, UnboundedVarError, UndefinedFunctionError};
 use type_sys::{Value, Type};
 
 use std::collections::{LinkedList, HashMap};
 use std::collections::hash_map::Entry;
 
 pub struct Environment<T> {
-    scopes: LinkedList<HashMap<String, T>>,
+    scopes: LinkedList<HashMap<String, BindingInfo<T>>>,
     builtins: HashMap<String, FunctionInfo>,
 }
 
@@ -33,27 +33,20 @@ impl FunctionInfo {
         self.signatures.contains_key(arg_types)
     }
 
-    pub fn return_type(&self, arg_types: &Vec<Type>) -> Result<&Type, NoSuchSignatureError> {
+    pub fn return_type(&self, arg_types: &Vec<Type>) -> Option<&Type> {
         self.signatures
             .get(arg_types)
-            // TODO
-            .ok_or(NoSuchSignatureError::new(self.name.clone(), arg_types.clone(), (0, 0)))
     }
 }
 
-pub struct TypeInfo {
-    pub type_: Type,
+pub struct BindingInfo<T> {
     pub declaration: Binding,
+    pub info: T,
 }
 
-pub struct ValueInfo {
-    pub value: Value,
-    pub declaration: Binding,
-}
+pub struct TypeInfo(pub Type);
 
-pub struct DeclarationInfo {
-    pub declaration: Binding,
-}
+pub struct ValueInfo(pub Value);
 
 impl<T> Environment<T> {
     pub fn new() -> Self {
@@ -131,14 +124,13 @@ impl<T> Environment<T> {
             .expect("Tried to leave a scope when not in a scope");
     }
 
-    pub fn declare(&mut self, name: String, info: T) -> Result<(), AlreadyDeclaredError> {
-        match self.scopes
-                  .front_mut()
-                  .expect("Trying to declare a variable out of scope")
-                  .entry(name.clone()) {
+    pub fn declare(&mut self, name: String, info: BindingInfo<T>) -> Result<(), AlreadyDeclaredError> {
+        let scope = self.scopes
+            .front_mut()
+            .expect("Trying to declare a variable out of scope");
 
-            // TODO
-            Entry::Occupied(_) => Err(AlreadyDeclaredError::new(name, (0, 0))),
+        match scope.entry(name.clone()) {
+            Entry::Occupied(entry) => Err(AlreadyDeclaredError::new(name, entry.get().declaration.clone(), Span(0, 0))),
 
             Entry::Vacant(vacant_entry) => {
                 vacant_entry.insert(info);
@@ -147,29 +139,29 @@ impl<T> Environment<T> {
         }
     }
 
-    pub fn get_var(&self, name: &String) -> Result<&T, UnboundedVarError> {
+    pub fn get_var(&self, name: &String) -> Result<&BindingInfo<T>, UnboundedVarError> {
         self.scopes
             .iter()
             .find(|scope| scope.contains_key(name))
             .map(|scope| scope.get(name).unwrap())
             // TODO
-            .ok_or(UnboundedVarError::new(name.clone(), (0, 0)))
+            .ok_or(UnboundedVarError::new(name.clone(), Span(0, 0)))
     }
 
-    pub fn get_var_mut(&mut self, name: &String) -> Result<&mut T, UnboundedVarError> {
+    pub fn get_var_mut(&mut self, name: &String) -> Result<&mut BindingInfo<T>, UnboundedVarError> {
         self.scopes
             .iter_mut()
             .find(|scope| scope.contains_key(name))
             .map(|scope| scope.get_mut(name).unwrap())
             // TODO
-            .ok_or(UnboundedVarError::new(name.clone(), (0, 0)))
+            .ok_or(UnboundedVarError::new(name.clone(), Span(0, 0)))
     }
 
     pub fn get_builtin(&self, name: &String) -> Result<&FunctionInfo, UndefinedFunctionError> {
         self.builtins
             .get(name)
             // TODO
-            .ok_or(UndefinedFunctionError::new(name.clone(), (0, 0)))
+            .ok_or(UndefinedFunctionError::new(name.clone(), Span(0, 0)))
     }
 
     pub fn get_builtin_mut(&mut self,
@@ -178,7 +170,7 @@ impl<T> Environment<T> {
         self.builtins
             .get_mut(name)
             // TODO
-            .ok_or(UndefinedFunctionError::new(name.clone(), (0, 0)))
+            .ok_or(UndefinedFunctionError::new(name.clone(), Span(0, 0)))
     }
 
     pub fn call_builtin(&mut self, name: &String, args: Vec<Value>) -> Value {
@@ -193,6 +185,6 @@ impl Environment<ValueInfo> {
     pub fn assign(&mut self, name: &String, value: Value) {
         self.get_var_mut(name)
             .expect(format!("Could not find variable {} in current scope", name).as_str())
-            .value = value;
+            .info.0 = value;
     }
 }

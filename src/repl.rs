@@ -41,15 +41,15 @@ pub fn start() {
                     Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => {
                         let mut partial_input = line.clone();
                         match multiline_loop(&mut rl, &mut partial_input) {
-                            Ok(exprs) => {
+                            (input, Ok(exprs)) => {
                                 if let Err(err) = do_the_thing(exprs, &mut bindings) {
-                                    print_error("<command-line>", &line.as_str(), err);
+                                    print_error("<command-line>", &input.as_str(), err);
                                 }
                                 // Restore the default completer.
                                 rl.set_completer(Some(ParseCompleter::default()));
                             }
-                            Err(REPLError::Readline(ReadlineError::Eof)) => {}
-                            Err(err) => print_error("<command-line>", &line.as_str(), err),
+                            (_, Err(REPLError::Readline(ReadlineError::Eof))) => {}
+                            (input, Err(err)) => print_error("<command-line>", &input.as_str(), err),
                         }
                     }
 
@@ -72,7 +72,7 @@ pub fn start() {
 
 fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
                       mut partial_input: &'a mut String)
-                      -> Result<ast::Exprs, REPLError<'a>> {
+                      -> (&'a String, Result<ast::Exprs, REPLError<'a>>) {
     loop {
         *partial_input += "\n";
         rl.set_completer(Some(ParseCompleter::from_context(partial_input.clone())));
@@ -83,7 +83,7 @@ fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
                 *partial_input += line.as_str();
 
                 match parse_expressions(partial_input) {
-                    Ok(expr) => return Ok(expr),
+                    Ok(expr) => return (partial_input, Ok(expr)),
                     Err(ParseError::UnrecognizedToken { token: None, expected: _ }) => continue,
                     Err(err) => {
                         // See: https://github.com/rust-lang/rust/issues/40307
@@ -100,8 +100,8 @@ fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
             }
 
             Err(ReadlineError::Interrupted) => continue,
-            Err(ReadlineError::Eof) => return Err(REPLError::Readline(ReadlineError::Eof)),
-            Err(err) => return Err(REPLError::Readline(err)),
+            Err(ReadlineError::Eof) => return (partial_input, Err(REPLError::Readline(ReadlineError::Eof))),
+            Err(err) => return (partial_input, Err(REPLError::Readline(err))),
         }
     }
 }

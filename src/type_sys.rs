@@ -1,7 +1,8 @@
+use ast::Span;
+use error::ConversionError;
+
 use std::char;
 use std::fmt;
-
-use error::ConversionError;
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq,Hash)]
 pub enum Type {
@@ -33,8 +34,8 @@ impl Value {
             Bool(false) => Ok(false),
             Bool(true) => Ok(true),
             // TODO
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Bool, (0, 0))),
-            Void => Err(ConversionError::new(Type::Void, Type::Bool, (0, 0))),
+            Str(_) => Err(ConversionError::new(Type::Str, Type::Bool, Span(0, 0))),
+            Void => Err(ConversionError::new(Type::Void, Type::Bool, Span(0, 0))),
         }
     }
 
@@ -58,8 +59,8 @@ impl Value {
             Float(val) => Ok(Integer(val as i32)),
             Bool(val) => Ok(Integer(val as i32)),
             // TODO
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Integer, (0, 0))),
-            Void => Err(ConversionError::new(Type::Void, Type::Integer, (0, 0))),
+            Str(_) => Err(ConversionError::new(Type::Str, Type::Integer, Span(0, 0))),
+            Void => Err(ConversionError::new(Type::Void, Type::Integer, Span(0, 0))),
         }
     }
 
@@ -71,8 +72,8 @@ impl Value {
             Float(_) => Ok(self),
             Bool(val) => Ok(Float(if val { 1f32 } else { 0f32 })),
             // TODO
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Float, (0, 0))),
-            Void => Err(ConversionError::new(Type::Void, Type::Float, (0, 0))),
+            Str(_) => Err(ConversionError::new(Type::Str, Type::Float, Span(0, 0))),
+            Void => Err(ConversionError::new(Type::Void, Type::Float, Span(0, 0))),
         }
     }
 }

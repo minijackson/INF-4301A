@@ -1,4 +1,4 @@
-use ast::{Exprs,Expr,BinaryOpCode,UnaryOpCode,Binding};
+use ast::{Exprs, Expr, BinaryOpCode, UnaryOpCode, Binding, Span};
 use type_sys;
 
 use std::str::FromStr;
@@ -13,6 +13,24 @@ Comma<T>: Vec<T> = {
             v.push(e);
             v
         }
+    }
+};
+
+SpannedComma<T>: Vec<(T, Span)> = {
+    <v:(<@L> <T> <@R> ",")*> <e:(<@L> <T> <@R>)?> => {
+        match e {
+            None => v,
+            Some(e) => {
+                let mut v = v;
+                v.push(e);
+                v
+            }
+        }
+        .into_iter()
+        .map(|(start, thing, end)| {
+            (thing, Span(start, end))
+        })
+        .collect()
     }
 };
 
@@ -34,18 +52,33 @@ Tier0: Box<Expr> = {
 };
 
 If: Box<Expr> = {
-    "if" <cond:Expression> "then" <true_branch:Expression> "else" <false_branch:Expression>
-        => Box::new(Expr::If(cond, true_branch, false_branch))
+    "if" <cond_start:@L> <cond:Expression> <cond_end:@R> "then" <true_branch:Expression> "else" <false_branch_start:@L> <false_branch:Expression> <false_branch_end:@R>
+        => Box::new(Expr::If {
+            cond,
+            true_branch,
+            false_branch,
+            cond_span: Span(cond_start, cond_end),
+            false_branch_span: Span(false_branch_start, false_branch_end),
+        })
 };
 
 While: Box<Expr> = {
-    "while" <cond:Expression> "do" <something:Expression>
-        => Box::new(Expr::While(cond, something))
+    "while" <cond_start:@L> <cond:Expression> <cond_end:@R> "do" <expr:Expression>
+        => Box::new(Expr::While {
+            cond,
+            expr,
+            cond_span: Span(cond_start, cond_end),
+        })
 };
 
 For: Box<Expr> = {
-    "for" <bind:Declaration> "to" <goal:Expression> "do" <something:Expression>
-        => Box::new(Expr::For(Box::new(bind), goal, something))
+    "for" <bind:Declaration> "to" <goal_start:@L> <goal:Expression> <goal_end:@R> "do"  <expr:Expression>
+        => Box::new(Expr::For {
+            binding: Box::new(bind),
+            goal,
+            expr,
+            goal_span: Span(goal_start, goal_end),
+        })
 };
 
 //===============
@@ -53,7 +86,12 @@ For: Box<Expr> = {
 //===============
 
 Tier1: Box<Expr> = {
-    <var:Identifier> ":=" <value:Expression> => Box::new(Expr::Assign(var, value)),
+    <name:Identifier> ":=" <value_start:@L> <value:Expression> <value_end:@R>
+        => Box::new(Expr::Assign {
+            name,
+            value,
+            value_span: Span(value_start, value_end),
+        }),
     Tier2
 };
 
@@ -123,16 +161,25 @@ Let: Box<Expr> = {
 };
 
 Declaration: Binding = {
-    "var" <name:Identifier> ":=" <exp:Expression>
-        => Binding{ variable: name, value: *exp }
+    <start:@L> "var" <name:Identifier> ":=" <value_start:@L> <exp:Expression> <value_end:@R>
+        => Binding{
+            variable: name,
+            value: *exp,
+            span: Span(start, value_end),
+            value_span: Span(value_start, value_end),
+        }
 };
 
 FunctionCall: Box<Expr> = {
-    <name:Identifier> "(" <args:Args> ")"
-        => Box::new(Expr::Function(name, args))
+    <start:@L> <name:Identifier> "(" <args:Args> ")" <end:@R>
+        => Box::new(Expr::Function {
+            name,
+            args,
+            span: Span(start, end),
+        })
 };
 
-Args = Comma<Expression>;
+Args = SpannedComma<Expression>;
 
 Variable: Box<Expr> = <Identifier> => Box::new(Expr::Variable(<>));
 

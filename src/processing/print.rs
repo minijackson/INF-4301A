@@ -30,41 +30,64 @@ impl Print for Expr {
             }
 
             &Let(ref bindings, ref exprs) => {
-                format!("let\n{}{}in\n{}{}end",
-                        bindings.iter()
+                format!("let\n{}\n{}in\n{}{}end",
+                        bindings
+                            .iter()
                             .map(|binding| binding.pretty_print(indent + 2))
-                            .join(""),
+                            .join("\n"),
                         ws,
                         exprs.pretty_print(indent + 2),
                         ws)
             }
 
-            &Assign(ref name, ref expr) => format!("{} := {}", name, expr.pretty_print(indent)),
+            &Assign {
+                ref name,
+                ref value,
+                ..
+            } => format!("{} := {}", name, value.pretty_print(indent)),
 
-            &Function(ref name, ref args) => {
+            &Function {
+                ref name,
+                ref args,
+                ..
+            } => {
                 format!("{}({})",
                         name,
                         args.iter()
-                            .map(|exp| exp.pretty_print(indent))
+                            .map(|&(ref exp, _)| exp.pretty_print(indent))
                             .join(", "))
             }
 
-            &If(ref cond, ref true_branch, ref false_branch) => {
+            &If {
+                ref cond,
+                ref true_branch,
+                ref false_branch,
+                ..
+            } => {
                 format!("if {} then {} else {}",
                         cond.pretty_print(indent),
                         true_branch.pretty_print(indent),
                         false_branch.pretty_print(indent))
             }
 
-            &While(ref cond, ref expr) => {
+            &While {
+                ref cond,
+                ref expr,
+                ..
+            } => {
                 format!("while {} do {}",
                         cond.pretty_print(indent),
                         expr.pretty_print(indent))
             }
 
-            &For(ref bindings, ref goal, ref expr) => {
+            &For {
+                 ref binding,
+                 ref goal,
+                 ref expr,
+                 ..
+             } => {
                 format!("for {} to {} do {}",
-                        bindings.pretty_print(indent),
+                        binding.pretty_print(indent),
                         goal.pretty_print(indent),
                         expr.pretty_print(indent))
             }
@@ -126,7 +149,7 @@ impl Print for Binding {
         let strws = " ".repeat(indent);
         let ws = strws.as_str();
 
-        format!("{}var {} := {}\n",
+        format!("{}var {} := {}",
                 ws,
                 self.variable,
                 self.value.pretty_print(indent))
@@ -279,6 +302,12 @@ end");
     fn while_block() {
         perfect_coding!("while 1 do 1");
         perfect_coding!("while while 1 do 1 do while 1 do 1");
+    }
+
+    #[test]
+    fn for_block() {
+        perfect_coding!("for var x := 1 to 1 do 1");
+        perfect_coding!("for var x := for var x := 1 to 2 do 1 to for var x := 1 to 2 do 1 do for var x := 1 to 2 do 1");
     }
 
     #[test]

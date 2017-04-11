@@ -2,6 +2,9 @@ use type_sys;
 
 use std::fmt;
 
+#[derive(Debug,Clone,Copy,PartialEq)]
+pub struct Span(pub usize, pub usize);
+
 #[derive(Debug,Clone,PartialEq)]
 pub struct Exprs {
     pub exprs: Vec<Box<Expr>>,
@@ -11,11 +14,34 @@ pub struct Exprs {
 pub enum Expr {
     Grouping(Exprs),
     Let(Vec<Binding>, Exprs),
-    Assign(String, Box<Expr>),
-    Function(String, Vec<Box<Expr>>),
-    If(Box<Expr>, Box<Expr>, Box<Expr>),
-    While(Box<Expr>, Box<Expr>),
-    For(Box<Binding>, Box<Expr>, Box<Expr>),
+    Assign {
+        name: String,
+        value: Box<Expr>,
+        value_span: Span,
+    },
+    Function {
+        name: String,
+        args: Vec<(Box<Expr>, Span)>,
+        span: Span,
+    },
+    If {
+        cond: Box<Expr>,
+        true_branch: Box<Expr>,
+        false_branch: Box<Expr>,
+        cond_span: Span,
+        false_branch_span: Span,
+    },
+    While {
+        cond: Box<Expr>,
+        expr: Box<Expr>,
+        cond_span: Span,
+    },
+    For {
+        binding: Box<Binding>,
+        goal: Box<Expr>,
+        expr: Box<Expr>,
+        goal_span: Span,
+    },
     BinaryOp(Box<Expr>, Box<Expr>, BinaryOpCode),
     UnaryOp(Box<Expr>, UnaryOpCode),
     Variable(String),
@@ -82,4 +108,6 @@ impl fmt::Display for UnaryOpCode {
 pub struct Binding {
     pub variable: String,
     pub value: Expr,
+    pub span: Span,
+    pub value_span: Span,
 }

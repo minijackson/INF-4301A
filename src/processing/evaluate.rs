@@ -1,6 +1,6 @@
 use ast::*;
 use type_sys::Value;
-use env::{Environment, ValueInfo};
+use env::{Environment, BindingInfo, ValueInfo};
 
 pub trait Evaluate {
     fn evaluate(&self, env: &mut Environment<ValueInfo>) -> Value;
@@ -29,9 +29,9 @@ impl Evaluate for Expr {
                 for binding in bindings.iter() {
                     let value = binding.value.evaluate(env);
                     env.declare(binding.variable.clone(),
-                                 ValueInfo {
-                                     value: value,
+                                 BindingInfo {
                                      declaration: binding.clone(),
+                                     info: ValueInfo(value),
                                  })
                         .unwrap();
                 }
@@ -41,20 +41,31 @@ impl Evaluate for Expr {
                 rv
             }
 
-            &Assign(ref name, ref expr) => {
-                let value = expr.evaluate(env);
+            &Assign {
+                ref name,
+                ref value,
+                ..
+            } => {
+                let value = value.evaluate(env);
                 env.assign(name, value.clone());
                 value
             }
 
-            &Function(ref name, ref args) => {
-                let args = args.iter()
-                    .map(|ref expr| expr.evaluate(env))
-                    .collect();
+            &Function {
+                ref name,
+                ref args,
+                ..
+            } => {
+                let args = args.iter().map(|&(ref expr, _)| expr.evaluate(env)).collect();
                 env.call_builtin(&name, args)
             }
 
-            &If(ref cond, ref true_branch, ref false_branch) => {
+            &If {
+                ref cond,
+                ref true_branch,
+                ref false_branch,
+                ..
+            } => {
                 if cond.evaluate(env).truthy().unwrap() {
                     true_branch.evaluate(env)
                 } else {
@@ -62,34 +73,46 @@ impl Evaluate for Expr {
                 }
             }
 
-            &While(ref cond, ref expr) => {
+            &While {
+                ref cond,
+                ref expr,
+                ..
+            } => {
                 while cond.evaluate(env).truthy().unwrap() {
                     expr.evaluate(env);
                 }
                 type_sys::Value::Void
             }
 
-            &For(ref binding, ref goal, ref expr) => {
+            &For {
+                 ref binding,
+                 ref goal,
+                 ref expr,
+                 ..
+             } => {
                 env.enter_scope();
 
                 let val = binding.value.evaluate(env);
                 env.declare(binding.variable.clone(),
-                             ValueInfo {
-                                 value: val.clone(),
+                             BindingInfo {
                                  declaration: (**binding).clone(),
+                                 info: ValueInfo(val.clone()),
                              })
                     .unwrap();
 
                 let upper = goal.evaluate(env);
                 match (val, upper) {
-                   (type_sys::Value::Integer(mut val), type_sys::Value::Integer(upper)) => {
+                    (type_sys::Value::Integer(mut val), type_sys::Value::Integer(upper)) => {
                         while val < upper {
                             expr.evaluate(env);
                             val = val + 1;
                             env.assign(&binding.variable, type_sys::Value::Integer(val));
                         }
                     }
-                    other => unreachable!("{:?} not an int, weren't you supposed to be good at coding?", other)
+                    other => {
+                        unreachable!("{:?} not an int, weren't you supposed to be good at coding?",
+                                     other)
+                    }
                 }
                 env.leave_scope();
                 type_sys::Value::Void
@@ -108,7 +131,7 @@ impl Evaluate for Expr {
             &Variable(ref name) => {
                 env.get_var(name)
                     .expect(format!("Unbounded variable: {}", name).as_str())
-                    .value
+                    .info.0
                     .clone()
             }
 

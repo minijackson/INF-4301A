@@ -1,4 +1,4 @@
-use ast::Binding;
+use ast::{Binding, Span};
 use type_sys::Type;
 
 use itertools::Itertools;
@@ -10,25 +10,54 @@ use std::fmt;
 use std::error::Error;
 use std::io::{stderr, Write};
 
-pub fn print_error<T>(filename: &str, input: &str, err: T) where T: Error + Span {
+pub fn print_error<T>(filename: &str, input: &str, err: T)
+    where T: Error + Hint
+{
     let mut t = term::stderr().unwrap();
+
     t.fg(term::color::BRIGHT_RED).unwrap();
     t.attr(term::Attr::Bold).unwrap();
 
     writeln!(&mut stderr(),
-             "While processing \"{}\"\n{}:\n",
+             "While processing \"{}\"\n{}: {}\n",
              filename,
-             err.description())
+             err.description(),
+             err)
             .unwrap();
 
-    let (mut start, end) = err.span();
+    t.reset().unwrap();
+
+    for hint in err.hints().into_iter() {
+        print_hints(input, hint);
+    }
+}
+
+pub fn print_hints(input: &str, hint: Hinter) {
+    let mut t = term::stderr().unwrap();
+
+    let Span(mut start, end) = hint.span;
     let span_len = end - start;
     let (offset, line) = extract_line(input, start);
 
     start -= offset;
 
     writeln!(&mut stderr(), "  {}", line).unwrap();
-    writeln!(&mut stderr(), "  {}{}~~~ {}", " ".repeat(start), "^".repeat(span_len), err).unwrap();
+
+    let color = match hint.type_ {
+        HinterType::Error => term::color::BRIGHT_RED,
+        HinterType::Warning => term::color::BRIGHT_YELLOW,
+        HinterType::Info => term::color::BLUE,
+    };
+
+    t.fg(color).unwrap();
+    t.attr(term::Attr::Bold).unwrap();
+
+    writeln!(&mut stderr(),
+             "  {}{}--- {}\n",
+             " ".repeat(start),
+             "^".repeat(span_len),
+             hint.message)
+            .unwrap();
 
     t.reset().unwrap();
 }
@@ -58,26 +87,42 @@ fn extract_line<'a>(input: &'a str, pos: usize) -> (usize, &'a str) {
     (start, &input[start..end])
 }
 
-pub trait Span: Send + Sync {
-    fn span(&self) -> (usize, usize);
+pub struct Hinter {
+    pub type_: HinterType,
+    pub span: Span,
+    pub message: String,
+}
+
+pub enum HinterType {
+    Error,
+    Warning,
+    Info,
+}
+
+pub trait Hint {
+    fn hints(&self) -> Vec<Hinter>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConversionError {
     pub from: Type,
     pub to: Type,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 impl ConversionError {
-    pub fn new(from: Type, to: Type, span: (usize, usize)) -> Self {
+    pub fn new(from: Type, to: Type, span: Span) -> Self {
         ConversionError { from, to, span }
     }
 }
 
-impl Span for ConversionError {
-    fn span(&self) -> (usize, usize) {
-        self.span
+impl Hint for ConversionError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: self.span,
+                 message: format!("Got a `{:?}` here", self.to),
+             }]
     }
 }
 
@@ -93,24 +138,38 @@ impl fmt::Display for ConversionError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlreadyDeclaredError {
     pub name: String,
-    pub span: (usize, usize),
+    pub span: Span,
+    // TODO: make that a reference
+    pub orig_declaration: Binding,
 }
 
 impl AlreadyDeclaredError {
-    pub fn new(name: String, span: (usize, usize)) -> Self {
-        AlreadyDeclaredError { name, span }
+    pub fn new(name: String, orig_declaration: Binding, span: Span) -> Self {
+        AlreadyDeclaredError {
+            name,
+            orig_declaration,
+            span,
+        }
     }
 }
 
-impl Span for AlreadyDeclaredError {
-    fn span(&self) -> (usize, usize) {
-        self.span
+impl Hint for AlreadyDeclaredError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: self.span,
+                 message: "Redeclared here".to_string(),
+             },
+             Hinter {
+                 type_: HinterType::Info,
+                 span: self.orig_declaration.span,
+                 message: "First declared here".to_string(),
+             }]
     }
 }
 
 impl fmt::Display for AlreadyDeclaredError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // TODO: say where
         write!(f, "variable `{}` was already declared", self.name)
     }
 }
@@ -129,11 +188,11 @@ impl Error for AlreadyDeclaredError {
 pub struct NoSuchSignatureError {
     pub func_name: String,
     pub arg_types: Vec<Type>,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 impl NoSuchSignatureError {
-    pub fn new(func_name: String, arg_types: Vec<Type>, span: (usize, usize)) -> Self {
+    pub fn new(func_name: String, arg_types: Vec<Type>, span: Span) -> Self {
         NoSuchSignatureError {
             func_name,
             arg_types,
@@ -142,9 +201,13 @@ impl NoSuchSignatureError {
     }
 }
 
-impl Span for NoSuchSignatureError {
-    fn span(&self) -> (usize, usize) {
-        self.span
+impl Hint for NoSuchSignatureError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: self.span,
+                 message: "Used here".to_string(),
+             }]
     }
 }
 
@@ -168,18 +231,22 @@ impl Error for NoSuchSignatureError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnboundedVarError {
     pub name: String,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 impl UnboundedVarError {
-    pub fn new(name: String, span: (usize, usize)) -> Self {
+    pub fn new(name: String, span: Span) -> Self {
         UnboundedVarError { name, span }
     }
 }
 
-impl Span for UnboundedVarError {
-    fn span(&self) -> (usize, usize) {
-        self.span
+impl Hint for UnboundedVarError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: self.span,
+                 message: "Used here".to_string(),
+             }]
     }
 }
 
@@ -202,18 +269,22 @@ impl Error for UnboundedVarError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UndefinedFunctionError {
     pub name: String,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 impl UndefinedFunctionError {
-    pub fn new(name: String, span: (usize, usize)) -> Self {
+    pub fn new(name: String, span: Span) -> Self {
         UndefinedFunctionError { name, span }
     }
 }
 
-impl Span for UndefinedFunctionError {
-    fn span(&self) -> (usize, usize) {
-        self.span
+impl Hint for UndefinedFunctionError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: self.span,
+                 message: "Used here".to_string(),
+             }]
     }
 }
 
@@ -243,17 +314,17 @@ pub enum TypeCheckError {
     UndefinedFunction(UndefinedFunctionError),
 }
 
-impl Span for TypeCheckError {
-    fn span(&self) -> (usize, usize) {
+impl Hint for TypeCheckError {
+    fn hints(&self) -> Vec<Hinter> {
         use self::TypeCheckError::*;
 
         match *self {
-            MismatchedTypes(ref err) => err.span(),
-            IncompatibleArmTypes(ref err) => err.span(),
-            NoSuchSignature(ref err) => err.span(),
-            UnboundedVar(ref err) => err.span(),
-            AlreadyDeclared(ref err) => err.span(),
-            UndefinedFunction(ref err) => err.span(),
+            MismatchedTypes(ref err) => err.hints(),
+            IncompatibleArmTypes(ref err) => err.hints(),
+            NoSuchSignature(ref err) => err.hints(),
+            UnboundedVar(ref err) => err.hints(),
+            AlreadyDeclared(ref err) => err.hints(),
+            UndefinedFunction(ref err) => err.hints(),
         }
     }
 }
@@ -343,11 +414,11 @@ pub struct MismatchedTypesError {
     pub got: Type,
     // TODO: make that a reference
     pub binding: Option<Binding>,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 impl MismatchedTypesError {
-    pub fn new(expected: Type, got: Type, span: (usize, usize)) -> Self {
+    pub fn new(expected: Type, got: Type, span: Span) -> Self {
         MismatchedTypesError {
             expected,
             got,
@@ -356,7 +427,7 @@ impl MismatchedTypesError {
         }
     }
 
-    pub fn from_binding(binding: Binding, expected: Type, got: Type, span: (usize, usize)) -> Self {
+    pub fn from_binding(binding: Binding, expected: Type, got: Type, span: Span) -> Self {
         MismatchedTypesError {
             expected,
             got,
@@ -366,15 +437,30 @@ impl MismatchedTypesError {
     }
 }
 
-impl Span for MismatchedTypesError {
-    fn span(&self) -> (usize, usize) {
-        self.span
+impl Hint for MismatchedTypesError {
+    fn hints(&self) -> Vec<Hinter> {
+        let mut res = vec![Hinter {
+                               type_: HinterType::Error,
+                               span: self.span,
+                               message: format!("Got a `{:?}` here", self.got),
+                           }];
+
+        if let Some(ref binding) = self.binding {
+            res.push(Hinter {
+                type_: HinterType::Info,
+                span: binding.span,
+                message: format!("Var `{}` is of type `{:?}` as deduced by this declaration",
+                                 binding.variable,
+                                 self.expected),
+            });
+        }
+
+        res
     }
 }
 
 impl fmt::Display for MismatchedTypesError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // TODO: say it with a binding if needed
         write!(f, "expected `{:?}`, got `{:?}`", self.expected, self.got)
     }
 }
@@ -393,18 +479,26 @@ impl Error for MismatchedTypesError {
 pub struct IncompatibleArmTypesError {
     pub expected: Type,
     pub got: Type,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 
 impl IncompatibleArmTypesError {
-    pub fn new(expected: Type, got: Type, span: (usize, usize)) -> Self {
-        IncompatibleArmTypesError { expected, got, span }
+    pub fn new(expected: Type, got: Type, span: Span) -> Self {
+        IncompatibleArmTypesError {
+            expected,
+            got,
+            span,
+        }
     }
 }
 
-impl Span for IncompatibleArmTypesError {
-    fn span(&self) -> (usize, usize) {
-        self.span
+impl Hint for IncompatibleArmTypesError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: self.span,
+                 message: format!("Resolved as a `{:?}`", self.got),
+             }]
     }
 }
 
@@ -441,16 +535,26 @@ pub enum ParseError<'a> {
     ExtraToken { token: (usize, (usize, &'a str), usize), },
 }
 
-impl<'a> Span for ParseError<'a> {
-    fn span(&self) -> (usize, usize) {
+impl<'a> Hint for ParseError<'a> {
+    fn hints(&self) -> Vec<Hinter> {
         use self::ParseError::*;
 
-        match *self {
-            InvalidToken { location } => (location, location + 1),
-            UnrecognizedToken { token: Some((start, _, end)), expected: _ } => (start, end),
-            UnrecognizedToken { token: None, expected: _ } => panic!("TODO"),
-            ExtraToken { token: (start, _, end) } => (start, end),
-        }
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: match *self {
+                     InvalidToken { location } => Span(location, location + 1),
+                     UnrecognizedToken {
+                         token: Some((start, _, end)),
+                         expected: _,
+                     } => Span(start, end),
+                     UnrecognizedToken {
+                         token: None,
+                         expected: _,
+                     } => panic!("TODO"),
+                     ExtraToken { token: (start, _, end) } => Span(start, end),
+                 },
+                 message: "Encountered here".to_string(),
+             }]
     }
 }
 
@@ -474,27 +578,21 @@ impl<'a> fmt::Display for ParseError<'a> {
         use self::ParseError::*;
 
         match *self {
-            InvalidToken { location: _ } => {
-                write!(f, "Invalid token")
-            }
+            InvalidToken { location: _ } => write!(f, "Invalid token"),
             UnrecognizedToken {
                 ref token,
                 ref expected,
             } => {
                 match *token {
                     None => write!(f, "Unexpected EOF")?,
-                    Some((_, (_, ref token), _)) => {
-                        write!(f, "Unexpected \"{}\"", token)?
-                    }
+                    Some((_, (_, ref token), _)) => write!(f, "Unexpected \"{}\"", token)?,
                 }
                 if !expected.is_empty() {
                     write!(f, ", expected one of: {}", expected.iter().join(", "))?;
                 }
                 Ok(())
             }
-            ExtraToken { token: (_, (_, ref token), _) } => {
-                write!(f, "Extra token `{}`", token)
-            }
+            ExtraToken { token: (_, (_, ref token), _) } => write!(f, "Extra token `{}`", token),
         }
     }
 }
@@ -515,13 +613,13 @@ pub enum REPLError<'a> {
     Parse(ParseError<'a>),
 }
 
-impl<'a> Span for REPLError<'a> {
-    fn span(&self) -> (usize, usize) {
+impl<'a> Hint for REPLError<'a> {
+    fn hints(&self) -> Vec<Hinter> {
         use self::REPLError::*;
 
         match *self {
             Readline(_) => panic!("TODO"),
-            Parse(ref err) => err.span(),
+            Parse(ref err) => err.hints(),
         }
     }
 }

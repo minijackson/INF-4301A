@@ -1,6 +1,6 @@
 use ast::*;
-use env::{Environment, TypeInfo};
-use error::{TypeCheckError, MismatchedTypesError, IncompatibleArmTypesError};
+use env::{Environment, BindingInfo, TypeInfo};
+use error::{IncompatibleArmTypesError, MismatchedTypesError, NoSuchSignatureError, TypeCheckError};
 use type_sys::Type;
 use type_sys::Type::*;
 
@@ -30,10 +30,14 @@ impl TypeCheck for Expr {
                 for binding in bindings.iter_mut() {
                     let type_ = binding.value.type_check(env)?;
                     env.declare(binding.variable.clone(),
-                                 TypeInfo {
-                                     type_,
+                                 BindingInfo {
                                      declaration: binding.clone(),
-                                 })?;
+                                     info: TypeInfo(type_),
+                                 })
+                    .map_err(|mut err| {
+                        err.span = binding.span;
+                        err
+                    })?;
                 }
 
                 let final_type = exprs.type_check(env)?;
@@ -41,11 +45,15 @@ impl TypeCheck for Expr {
                 Ok(final_type)
             }
 
-            &mut Assign(ref name, ref mut expr) => {
-                let assign_type = expr.type_check(env)?;
+            &mut Assign {
+                     ref name,
+                     ref mut value,
+                     ref value_span,
+                 } => {
+                let assign_type = value.type_check(env)?;
 
                 let var_info = env.get_var(name)?;
-                let declared_type = var_info.type_;
+                let declared_type = var_info.info.0;
 
                 if declared_type != assign_type {
                     return Err(
@@ -54,8 +62,8 @@ impl TypeCheck for Expr {
                                 var_info.declaration.clone(),
                                 declared_type,
                                 assign_type,
-                                // TODO
-                                (0, 0))
+                                *value_span
+                                )
                             )
                         );
                 }
@@ -63,23 +71,33 @@ impl TypeCheck for Expr {
                 Ok(declared_type)
             }
 
-            &mut Function(ref name, ref mut args) => {
+            &mut Function {
+                     ref name,
+                     ref mut args,
+                     ref span,
+                 } => {
                 let arg_types = args.iter_mut()
-                    .map(|ref mut expr| expr.type_check(env))
+                    //.map(|&mut (ref mut expr, ref span)| expr.type_check(env).map(|arg_type| (arg_type, span)))
+                    .map(|&mut (ref mut expr, _)| expr.type_check(env))
                     .collect::<Result<_, _>>()?;
 
                 env.get_builtin(name)?
                     .return_type(&arg_types)
                     .map(|return_type| *return_type)
-                    .map_err(TypeCheckError::NoSuchSignature)
+                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
             }
 
-            &mut If(ref mut expr, ref mut true_branch, ref mut false_branch) => {
-                if expr.type_check(env)? == Void {
+            &mut If {
+                     ref mut cond,
+                     ref mut true_branch,
+                     ref mut false_branch,
+                     ref cond_span,
+                     ref false_branch_span,
+                 } => {
+                if cond.type_check(env)? == Void {
                     return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Bool,
                                                                                          Void,
-                                                                                         // TODO
-                                                                                         (0, 0))));
+                                                                                         *cond_span)));
                 }
 
                 let true_branch_type = true_branch.type_check(env)?;
@@ -89,19 +107,21 @@ impl TypeCheck for Expr {
                     return Err(TypeCheckError::IncompatibleArmTypes(IncompatibleArmTypesError::new(
                            true_branch_type,
                            false_branch_type,
-                           // TODO
-                           (0, 0))));
+                           *false_branch_span)));
                 }
 
                 Ok(true_branch_type)
             }
 
-            &mut While(ref mut cond, ref mut expr) => {
+            &mut While {
+                     ref mut cond,
+                     ref mut expr,
+                     ref cond_span,
+                 } => {
                 if cond.type_check(env)? == Void {
                     return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Bool,
                                                                                          Void,
-                                                                                         // TODO
-                                                                                         (0, 0))));
+                                                                                         *cond_span)));
                 }
 
                 expr.type_check(env)?;
@@ -109,7 +129,12 @@ impl TypeCheck for Expr {
                 Ok(Void)
             }
 
-            &mut For(ref mut binding, ref mut goal, ref mut expr) => {
+            &mut For {
+                     ref mut binding,
+                     ref mut goal,
+                     ref mut expr,
+                     ref goal_span,
+                 } => {
                 env.enter_scope();
 
                 let binding_type = binding.value.type_check(env)?;
@@ -118,21 +143,19 @@ impl TypeCheck for Expr {
                 if binding_type != Integer {
                     return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Integer,
                                                                                          binding_type,
-                                                                                         // TODO
-                                                                                         (0, 0))));
+                                                                                         binding.value_span)));
                 }
 
                 env.declare(binding.variable.clone(),
-                    TypeInfo {
-                        type_: binding_type,
-                        declaration: (**binding).clone(),
-                    })?;
+                             BindingInfo {
+                                 declaration: (**binding).clone(),
+                                 info: TypeInfo(binding_type),
+                             })?;
 
                 if goal_type != Integer {
                     return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Integer,
                                                                                          goal_type,
-                                                                                         // TODO
-                                                                                         (0, 0))));
+                                                                                         *goal_span)));
                 }
 
                 expr.type_check(env)?;
@@ -144,25 +167,29 @@ impl TypeCheck for Expr {
             &mut BinaryOp(ref mut lhs, ref mut rhs, ref op) => {
                 let arg_types = vec![lhs.type_check(env)?, rhs.type_check(env)?];
 
-                env.get_builtin(&op.to_string())?
+                let name = &op.to_string();
+
+                env.get_builtin(name)?
                     .return_type(&arg_types)
                     .map(|return_type| *return_type)
-                    .map_err(TypeCheckError::NoSuchSignature)
+                    // TODO
+                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), Span(0, 0))))
             }
 
             &mut UnaryOp(ref mut expr, ref op) => {
                 let arg_types = vec![expr.type_check(env)?];
 
+                let name = &format!("un{}", op.to_string());
 
-                env.get_builtin(&format!("un{}", op.to_string()))?
+                env.get_builtin(name)?
                     .return_type(&arg_types)
                     .map(|return_type| *return_type)
-                    .map_err(TypeCheckError::NoSuchSignature)
+                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), Span(0, 0))))
             }
 
             &mut Variable(ref name) => {
                 env.get_var(name)
-                    .map(|var| var.type_)
+                    .map(|var| var.info.0)
                     .map_err(TypeCheckError::UnboundedVar)
             }
 
