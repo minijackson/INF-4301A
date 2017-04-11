@@ -44,8 +44,8 @@ While: Box<Expr> = {
 };
 
 For: Box<Expr> = {
-    "for" <bind:Declaration> "to" <goal:Expression> "do" <something:Expression>  
-	=> Box::new(Expr::For(Box::new(bind), goal, something))
+    "for" <bind:Declaration> "to" <goal:Expression> "do" <something:Expression>
+        => Box::new(Expr::For(Box::new(bind), goal, something))
 };
 
 //===============

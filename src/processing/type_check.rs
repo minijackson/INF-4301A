@@ -109,19 +109,35 @@ impl TypeCheck for Expr {
                 Ok(Void)
             }
 
-            &mut For(ref mut binding, ref mut expr, ref mut expr2) => {
+            &mut For(ref mut binding, ref mut goal, ref mut expr) => {
                 env.enter_scope();
-                let binding_type = binding.value.type_check(env)?;
 
-                if expr.type_check(env)? == Void {
-                    return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Bool,
-                                                                                         Void,
+                let binding_type = binding.value.type_check(env)?;
+                let goal_type = goal.type_check(env)?;
+
+                if binding_type != Integer {
+                    return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Integer,
+                                                                                         binding_type,
                                                                                          // TODO
                                                                                          (0, 0))));
                 }
-                
-                expr2.type_check(env)?;
 
+                env.declare(binding.variable.clone(),
+                    TypeInfo {
+                        type_: binding_type,
+                        declaration: (**binding).clone(),
+                    })?;
+
+                if goal_type != Integer {
+                    return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Integer,
+                                                                                         goal_type,
+                                                                                         // TODO
+                                                                                         (0, 0))));
+                }
+
+                expr.type_check(env)?;
+
+                env.leave_scope();
                 Ok(Void)
             }
 

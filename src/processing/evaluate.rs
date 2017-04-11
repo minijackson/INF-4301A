@@ -69,27 +69,27 @@ impl Evaluate for Expr {
                 type_sys::Value::Void
             }
 
-            &For(ref binding, ref expr, ref expr2) => {
+            &For(ref binding, ref goal, ref expr) => {
                 env.enter_scope();
-                use std::ops::Deref;
 
-                let var = binding.value.evaluate(env);
+                let val = binding.value.evaluate(env);
                 env.declare(binding.variable.clone(),
                              ValueInfo {
-                                 value: var.clone(),
-                                 declaration: binding.deref().clone(),
+                                 value: val.clone(),
+                                 declaration: (**binding).clone(),
                              })
                     .unwrap();
-                println!("{:?}", binding);    
-                let var2 = expr.evaluate(env);
-                match (var,var2) {
-                   (type_sys::Value::Integer(mut var),type_sys::Value::Integer(var2)) => {
-                        while var < var2 {
-                            expr2.evaluate(env);
-                            var = var + 1;
+
+                let upper = goal.evaluate(env);
+                match (val, upper) {
+                   (type_sys::Value::Integer(mut val), type_sys::Value::Integer(upper)) => {
+                        while val < upper {
+                            expr.evaluate(env);
+                            val = val + 1;
+                            env.assign(&binding.variable, type_sys::Value::Integer(val));
                         }
                     }
-                    other => unreachable!("{:?} not an int, weren't you supposed to be good at coding?", other) 
+                    other => unreachable!("{:?} not an int, weren't you supposed to be good at coding?", other)
                 }
                 env.leave_scope();
                 type_sys::Value::Void

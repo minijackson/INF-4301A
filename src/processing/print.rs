@@ -62,11 +62,11 @@ impl Print for Expr {
                         expr.pretty_print(indent))
             }
 
-            &For(ref bindings, ref expr, ref expr2) => {
-                format!("for {} to {} do\n {}", 
+            &For(ref bindings, ref goal, ref expr) => {
+                format!("for {} to {} do {}",
                         bindings.pretty_print(indent),
-                        expr.pretty_print(indent),
-                        expr2.pretty_print(indent))
+                        goal.pretty_print(indent),
+                        expr.pretty_print(indent))
             }
 
             &BinaryOp(ref lhs, ref rhs, ref op) => {
