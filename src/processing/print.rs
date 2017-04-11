@@ -62,6 +62,13 @@ impl Print for Expr {
                         expr.pretty_print(indent))
             }
 
+            &For(ref bindings, ref expr, ref expr2) => {
+                format!("for {} to {} do\n {}", 
+                        bindings.pretty_print(indent),
+                        expr.pretty_print(indent),
+                        expr2.pretty_print(indent))
+            }
+
             &BinaryOp(ref lhs, ref rhs, ref op) => {
                 let op_symbol = match op {
                     &Add => "+",

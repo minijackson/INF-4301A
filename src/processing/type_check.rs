@@ -109,6 +109,22 @@ impl TypeCheck for Expr {
                 Ok(Void)
             }
 
+            &mut For(ref mut binding, ref mut expr, ref mut expr2) => {
+                env.enter_scope();
+                let binding_type = binding.value.type_check(env)?;
+
+                if expr.type_check(env)? == Void {
+                    return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Bool,
+                                                                                         Void,
+                                                                                         // TODO
+                                                                                         (0, 0))));
+                }
+                
+                expr2.type_check(env)?;
+
+                Ok(Void)
+            }
+
             &mut BinaryOp(ref mut lhs, ref mut rhs, ref op) => {
                 let arg_types = vec![lhs.type_check(env)?, rhs.type_check(env)?];
 

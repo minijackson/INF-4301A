@@ -29,7 +29,7 @@ pub Expression: Box<Expr> = {
 //==================
 
 Tier0: Box<Expr> = {
-    If, While,
+    If, While,For,
     Tier1
 };
 
@@ -41,6 +41,11 @@ If: Box<Expr> = {
 While: Box<Expr> = {
     "while" <cond:Expression> "do" <something:Expression>
         => Box::new(Expr::While(cond, something))
+};
+
+For: Box<Expr> = {
+    "for" <bind:Declaration> "to" <goal:Expression> "do" <something:Expression>  
+	=> Box::new(Expr::For(Box::new(bind), goal, something))
 };
 
 //===============

@@ -69,6 +69,32 @@ impl Evaluate for Expr {
                 type_sys::Value::Void
             }
 
+            &For(ref binding, ref expr, ref expr2) => {
+                env.enter_scope();
+                use std::ops::Deref;
+
+                let var = binding.value.evaluate(env);
+                env.declare(binding.variable.clone(),
+                             ValueInfo {
+                                 value: var.clone(),
+                                 declaration: binding.deref().clone(),
+                             })
+                    .unwrap();
+                println!("{:?}", binding);    
+                let var2 = expr.evaluate(env);
+                match (var,var2) {
+                   (type_sys::Value::Integer(mut var),type_sys::Value::Integer(var2)) => {
+                        while var < var2 {
+                            expr2.evaluate(env);
+                            var = var + 1;
+                        }
+                    }
+                    other => unreachable!("{:?} not an int, weren't you supposed to be good at coding?", other) 
+                }
+                env.leave_scope();
+                type_sys::Value::Void
+            }
+
             &BinaryOp(ref lhs, ref rhs, ref op) => {
                 let args = vec![lhs.evaluate(env), rhs.evaluate(env)];
                 env.call_builtin(&op.to_string(), args)
