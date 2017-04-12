@@ -13,6 +13,58 @@ pub enum Type {
     Str, /* Array, */
 }
 
+impl Type {
+    pub fn is_convertible_to(&self, dest: Type) -> bool {
+        use self::Type::*;
+
+        match *self {
+            Void => {
+                match dest {
+                    Void => true,
+                    _ => false,
+                }
+            }
+            Integer => {
+                match dest {
+                    Void => true,
+                    Integer => true,
+                    Float => true,
+                    Bool => true,
+                    Str => true,
+                }
+            }
+            Float => {
+                match dest {
+                    Void => true,
+                    Integer => true,
+                    Float => true,
+                    Bool => true,
+                    Str => true,
+                }
+            }
+            Bool => {
+                match dest {
+                    Void => true,
+                    Integer => false,
+                    Float => false,
+                    Bool => true,
+                    Str => true,
+                }
+            }
+            Str => {
+                match dest {
+                    Void => true,
+                    // TODO
+                    Integer => false,
+                    Float => false,
+                    Bool => false,
+                    Str => true,
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug,Clone,PartialEq)]
 pub enum Value {
     Void,
@@ -51,29 +103,53 @@ impl Value {
         }
     }
 
-    pub fn into_int(self) -> Result<Self, ConversionError> {
+    pub fn into(self, dest: Type) -> Self {
         use self::Value::*;
 
         match self {
-            Integer(_) => Ok(self),
-            Float(val) => Ok(Integer(val as i32)),
-            Bool(val) => Ok(Integer(val as i32)),
-            // TODO
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Integer, Span(0, 0))),
-            Void => Err(ConversionError::new(Type::Void, Type::Integer, Span(0, 0))),
-        }
-    }
-
-    pub fn into_float(self) -> Result<Self, ConversionError> {
-        use self::Value::*;
-
-        match self {
-            Integer(val) => Ok(Float(val as f32)),
-            Float(_) => Ok(self),
-            Bool(val) => Ok(Float(if val { 1f32 } else { 0f32 })),
-            // TODO
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Float, Span(0, 0))),
-            Void => Err(ConversionError::new(Type::Void, Type::Float, Span(0, 0))),
+            Void => {
+                match dest {
+                    Type::Void => Void,
+                    _ => panic!("Unnatural conversion at runtime"),
+                }
+            }
+            Integer(val) => {
+                match dest {
+                    Type::Void => Void,
+                    Type::Integer => Integer(val),
+                    Type::Float => Float(val as f32),
+                    Type::Bool => Bool(if val == 1 { true } else { false }),
+                    Type::Str => Str(val.to_string()),
+                }
+            }
+            Float(val) => {
+                match dest {
+                    Type::Void => Void,
+                    Type::Integer => Integer(val as i32),
+                    Type::Float => Float(val),
+                    Type::Bool => Bool(if val == 1f32 { true } else { false }),
+                    Type::Str => Str(val.to_string()),
+                }
+            }
+            Bool(val) => {
+                match dest {
+                    Type::Void => Void,
+                    Type::Integer => panic!("Unnatural conversion at runtime"),
+                    Type::Float => panic!("Unnatural conversion at runtime"),
+                    Type::Bool => Bool(val),
+                    Type::Str => Str(val.to_string()),
+                }
+            }
+            Str(val) => {
+                match dest {
+                    Type::Void => Value::Void,
+                    // TODO
+                    Type::Integer => panic!("Unnatural conversion at runtime"),
+                    Type::Float => panic!("Unnatural conversion at runtime"),
+                    Type::Bool => panic!("Unnatural conversion at runtime"),
+                    Type::Str => Str(val),
+                }
+            }
         }
     }
 }
@@ -113,8 +189,7 @@ pub fn unescape_str(input: String) -> String {
                              let val = chars
                                  .by_ref()
                                  .take(4)
-                                 .fold(0,
-                                       |acc, c| acc * 16 + c.to_digit(16).unwrap());
+                                 .fold(0, |acc, c| acc * 16 + c.to_digit(16).unwrap());
                              char::from_u32(val).unwrap()
                          }
                          Some('n') => '\n',

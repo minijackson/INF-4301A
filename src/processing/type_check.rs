@@ -1,7 +1,7 @@
 use ast::*;
 use env::{Environment, BindingInfo, TypeInfo};
-use error::{IncompatibleArmTypesError, MismatchedTypesError, NoSuchSignatureError, TypeCheckError,
-            UnboundedVarError, UndefinedFunctionError};
+use error::{ConversionError, IncompatibleArmTypesError, MismatchedTypesError,
+            NoSuchSignatureError, TypeCheckError, UnboundedVarError, UndefinedFunctionError};
 use type_sys::Type;
 use type_sys::Type::*;
 
@@ -93,9 +93,10 @@ impl TypeCheck for Expr {
 
             &mut If {
                      ref mut cond,
-                     ref mut true_branch,
-                     ref mut false_branch,
                      ref cond_span,
+                     ref mut true_branch,
+                     ref true_branch_span,
+                     ref mut false_branch,
                      ref false_branch_span,
                  } => {
                 if cond.type_check(env)? == Void {
@@ -111,6 +112,7 @@ impl TypeCheck for Expr {
                     return Err(TypeCheckError::IncompatibleArmTypes(IncompatibleArmTypesError::new(
                            true_branch_type,
                            false_branch_type,
+                           *true_branch_span,
                            *false_branch_span)));
                 }
 
@@ -169,11 +171,11 @@ impl TypeCheck for Expr {
             }
 
             &mut BinaryOp {
-                ref mut lhs,
-                ref mut rhs,
-                ref op,
-                ref span,
-            } => {
+                     ref mut lhs,
+                     ref mut rhs,
+                     ref op,
+                     ref span,
+                 } => {
                 let arg_types = vec![lhs.type_check(env)?, rhs.type_check(env)?];
 
                 let name = &op.to_string();
@@ -186,10 +188,10 @@ impl TypeCheck for Expr {
             }
 
             &mut UnaryOp {
-                ref mut expr,
-                ref op,
-                ref span,
-            } => {
+                     ref mut expr,
+                     ref op,
+                     ref span,
+                 } => {
                 let arg_types = vec![expr.type_check(env)?];
 
                 let name = &format!("un{}", op.to_string());
@@ -199,6 +201,21 @@ impl TypeCheck for Expr {
                     .return_type(&arg_types)
                     .map(|return_type| *return_type)
                     .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
+            }
+
+            &mut Cast {
+                     ref mut expr,
+                     ref expr_span,
+                     dest,
+                 } => {
+                let src_type = expr.type_check(env)?;
+
+                if src_type.is_convertible_to(dest) {
+                    Ok(dest)
+                } else {
+                    Err(TypeCheckError::Conversion(ConversionError::new(src_type, dest, *expr_span)))
+                }
+
             }
 
             &mut Variable { ref name, ref span } => {

@@ -121,7 +121,7 @@ impl Hint for ConversionError {
         vec![Hinter {
                  type_: HinterType::Error,
                  span: self.span,
-                 message: format!("Got a `{:?}` here", self.to),
+                 message: format!("Got a `{:?}` here", self.from),
              }]
     }
 }
@@ -132,6 +132,16 @@ impl fmt::Display for ConversionError {
                "Unnatural conversion from {:?} to {:?}",
                self.from,
                self.to)
+    }
+}
+
+impl Error for ConversionError {
+    fn description(&self) -> &str {
+        "conversion error"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        None
     }
 }
 
@@ -307,6 +317,7 @@ impl Error for UndefinedFunctionError {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeCheckError {
     MismatchedTypes(MismatchedTypesError),
+    Conversion(ConversionError),
     IncompatibleArmTypes(IncompatibleArmTypesError),
     NoSuchSignature(NoSuchSignatureError),
     UnboundedVar(UnboundedVarError),
@@ -320,6 +331,7 @@ impl Hint for TypeCheckError {
 
         match *self {
             MismatchedTypes(ref err) => err.hints(),
+            Conversion(ref err) => err.hints(),
             IncompatibleArmTypes(ref err) => err.hints(),
             NoSuchSignature(ref err) => err.hints(),
             UnboundedVar(ref err) => err.hints(),
@@ -335,6 +347,7 @@ impl fmt::Display for TypeCheckError {
 
         match *self {
             MismatchedTypes(ref err) => write!(f, "{}", err),
+            Conversion(ref err) => write!(f, "{}", err),
             IncompatibleArmTypes(ref err) => write!(f, "{}", err),
             NoSuchSignature(ref err) => write!(f, "{}", err),
             UnboundedVar(ref err) => write!(f, "{}", err),
@@ -350,6 +363,7 @@ impl Error for TypeCheckError {
 
         match *self {
             MismatchedTypes(ref err) => err.description(),
+            Conversion(ref err) => err.description(),
             IncompatibleArmTypes(ref err) => err.description(),
             NoSuchSignature(ref err) => err.description(),
             UnboundedVar(ref err) => err.description(),
@@ -363,6 +377,7 @@ impl Error for TypeCheckError {
 
         match *self {
             MismatchedTypes(ref err) => Some(err),
+            Conversion(ref err) => Some(err),
             IncompatibleArmTypes(ref err) => Some(err),
             NoSuchSignature(ref err) => Some(err),
             UnboundedVar(ref err) => Some(err),
@@ -375,6 +390,12 @@ impl Error for TypeCheckError {
 impl From<MismatchedTypesError> for TypeCheckError {
     fn from(err: MismatchedTypesError) -> Self {
         TypeCheckError::MismatchedTypes(err)
+    }
+}
+
+impl From<ConversionError> for TypeCheckError {
+    fn from(err: ConversionError) -> Self {
+        TypeCheckError::Conversion(err)
     }
 }
 
@@ -479,15 +500,17 @@ impl Error for MismatchedTypesError {
 pub struct IncompatibleArmTypesError {
     pub expected: Type,
     pub got: Type,
-    pub span: Span,
+    pub true_branch_span: Span,
+    pub false_branch_span: Span,
 }
 
 impl IncompatibleArmTypesError {
-    pub fn new(expected: Type, got: Type, span: Span) -> Self {
+    pub fn new(expected: Type, got: Type, true_branch_span: Span, false_branch_span: Span) -> Self {
         IncompatibleArmTypesError {
             expected,
             got,
-            span,
+            true_branch_span,
+            false_branch_span,
         }
     }
 }
@@ -496,8 +519,13 @@ impl Hint for IncompatibleArmTypesError {
     fn hints(&self) -> Vec<Hinter> {
         vec![Hinter {
                  type_: HinterType::Error,
-                 span: self.span,
+                 span: self.false_branch_span,
                  message: format!("Resolved as a `{:?}`", self.got),
+             },
+             Hinter {
+                 type_: HinterType::Info,
+                 span: self.true_branch_span,
+                 message: format!("True branch resolved as `{:?}`", self.expected),
              }]
     }
 }

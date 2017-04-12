@@ -52,12 +52,13 @@ Tier0: Box<Expr> = {
 };
 
 If: Box<Expr> = {
-    "if" <cond_start:@L> <cond:Expression> <cond_end:@R> "then" <true_branch:Expression> "else" <false_branch_start:@L> <false_branch:Expression> <false_branch_end:@R>
+    "if" <cond_start:@L> <cond:Expression> <cond_end:@R> "then" <true_branch_start:@L> <true_branch:Expression> <true_branch_end:@R> "else" <false_branch_start:@L> <false_branch:Expression> <false_branch_end:@R>
         => Box::new(Expr::If {
             cond,
-            true_branch,
-            false_branch,
             cond_span: Span(cond_start, cond_end),
+            true_branch,
+            true_branch_span: Span(true_branch_start, true_branch_end),
+            false_branch,
             false_branch_span: Span(false_branch_start, false_branch_end),
         })
 };
@@ -66,8 +67,8 @@ While: Box<Expr> = {
     "while" <cond_start:@L> <cond:Expression> <cond_end:@R> "do" <expr:Expression>
         => Box::new(Expr::While {
             cond,
-            expr,
             cond_span: Span(cond_start, cond_end),
+            expr,
         })
 };
 
@@ -76,8 +77,8 @@ For: Box<Expr> = {
         => Box::new(Expr::For {
             binding: Box::new(bind),
             goal,
-            expr,
             goal_span: Span(goal_start, goal_end),
+            expr,
         })
 };
 
@@ -127,10 +128,20 @@ Tier4Op: BinaryOpCode = {
     "-" => BinaryOpCode::Sub,
 };
 
-Tier5 = BinOpTier<Tier5Op, UnaryOpExp>;
+Tier5 = BinOpTier<Tier5Op, Tier6>;
 Tier5Op: BinaryOpCode = {
     "*" => BinaryOpCode::Mul,
     "/" => BinaryOpCode::Div,
+};
+
+Tier6: Box<Expr> = {
+    <expr_start:@L> <expr:Tier6> <expr_end:@R> "as" <dest:Type>
+        => Box::new(Expr::Cast {
+            expr,
+            expr_span: Span(expr_start, expr_end),
+            dest,
+        }),
+    UnaryOpExp
 };
 
 UnaryOpExp: Box<Expr> = {
@@ -218,6 +229,15 @@ Value: Box<Expr> = {
     },
     "true"  => Box::new(Expr::Value(type_sys::Value::Bool(true))),
     "false" => Box::new(Expr::Value(type_sys::Value::Bool(false))),
+};
+
+Type: type_sys::Type = {
+    "Void" => type_sys::Type::Void,
+    "Integer" => type_sys::Type::Integer,
+    "Float" => type_sys::Type::Float,
+    "Bool" => type_sys::Type::Bool,
+    "Str" => type_sys::Type::Str,
+    // "Array" => Array,
 };
 
 Identifier: String = r"[[:alpha:]][[:alnum:]_]*" => <>.to_string();

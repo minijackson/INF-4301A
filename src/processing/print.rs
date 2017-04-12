@@ -64,7 +64,7 @@ impl Print for Expr {
                 ref false_branch,
                 ..
             } => {
-                format!("if {} then {} else {}",
+                format!("(if {} then {} else {})",
                         cond.pretty_print(indent),
                         true_branch.pretty_print(indent),
                         false_branch.pretty_print(indent))
@@ -75,7 +75,7 @@ impl Print for Expr {
                 ref expr,
                 ..
             } => {
-                format!("while {} do {}",
+                format!("(while {} do {})",
                         cond.pretty_print(indent),
                         expr.pretty_print(indent))
             }
@@ -86,7 +86,7 @@ impl Print for Expr {
                  ref expr,
                  ..
              } => {
-                format!("for {} to {} do {}",
+                format!("(for {} to {} do {})",
                         binding.pretty_print(indent),
                         goal.pretty_print(indent),
                         expr.pretty_print(indent))
@@ -124,9 +124,17 @@ impl Print for Expr {
                 ..
             } => {
                 match op {
-                    &Plus => format!("+{}", &expr.pretty_print(indent)),
-                    &Minus => format!("-{}", &expr.pretty_print(indent)),
+                    &Plus => format!("(+{})", expr.pretty_print(indent)),
+                    &Minus => format!("(-{})", expr.pretty_print(indent)),
                 }
+            }
+
+            &Cast {
+                ref expr,
+                ref dest,
+                ..
+            } => {
+                format!("({} as {:?})", expr.pretty_print(indent), dest)
             }
 
             &Variable {
@@ -203,14 +211,14 @@ mod test {
         perfect_coding!("(2 <= 2)");
         perfect_coding!("(2 > 2)");
         perfect_coding!("(2 >= 2)");
-        perfect_coding!("-2");
-        perfect_coding!("+2");
+        perfect_coding!("(-2)");
+        perfect_coding!("(+2)");
     }
 
     #[test]
     fn chained_operators() {
         perfect_coding!("((2 + 2) + 2)");
-        perfect_coding!("((2 + +2) - -2)");
+        perfect_coding!("((2 + (+2)) - (-2))");
         perfect_coding!("((2 <> 2) > 2)");
     }
 
@@ -296,9 +304,9 @@ end");
 
     #[test]
     fn if_block() {
-        perfect_coding!("if 1 then 1 else 0");
-        perfect_coding!("if if 1 then 1 else 0 then if 1 then 1 else 0 else if 1 then 1 else 0");
-        perfect_coding!("if (
+        perfect_coding!("(if 1 then 1 else 0)");
+        perfect_coding!("(if (if 1 then 1 else 0) then (if 1 then 1 else 0) else (if 1 then 1 else 0))");
+        perfect_coding!("(if (
   0,
   1
 ) then (
@@ -307,19 +315,26 @@ end");
 ) else (
   0,
   1
-)");
+))");
     }
 
     #[test]
     fn while_block() {
-        perfect_coding!("while 1 do 1");
-        perfect_coding!("while while 1 do 1 do while 1 do 1");
+        perfect_coding!("(while 1 do 1)");
+        perfect_coding!("(while (while 1 do 1) do (while 1 do 1))");
     }
 
     #[test]
     fn for_block() {
-        perfect_coding!("for var x := 1 to 1 do 1");
-        perfect_coding!("for var x := for var x := 1 to 2 do 1 to for var x := 1 to 2 do 1 do for var x := 1 to 2 do 1");
+        perfect_coding!("(for var x := 1 to 1 do 1)");
+        perfect_coding!("(for var x := (for var x := 1 to 2 do 1) to (for var x := 1 to 2 do 1) do (for var x := 1 to 2 do 1))");
+    }
+
+    #[test]
+    fn cast() {
+        perfect_coding!("((+2) as Str)");
+        perfect_coding!("(+(2 as Str))");
+        perfect_coding!("(+(2 as Str))");
     }
 
     #[test]

@@ -137,6 +137,14 @@ impl Evaluate for Expr {
                 env.call_builtin(&format!("un{}", op.to_string()), args)
             }
 
+            &Cast {
+                ref expr,
+                dest,
+                ..
+            } => {
+                expr.evaluate(env).into(dest)
+            }
+
             &Variable {
                 ref name,
                 ..

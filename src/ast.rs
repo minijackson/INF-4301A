@@ -29,6 +29,7 @@ pub enum Expr {
         cond: Box<Expr>,
         cond_span: Span,
         true_branch: Box<Expr>,
+        true_branch_span: Span,
         false_branch: Box<Expr>,
         false_branch_span: Span,
     },
@@ -40,8 +41,8 @@ pub enum Expr {
     For {
         binding: Box<Binding>,
         goal: Box<Expr>,
-        expr: Box<Expr>,
         goal_span: Span,
+        expr: Box<Expr>,
     },
     BinaryOp {
         lhs: Box<Expr>,
@@ -53,6 +54,11 @@ pub enum Expr {
         expr: Box<Expr>,
         op: UnaryOpCode,
         span: Span,
+    },
+    Cast {
+        expr: Box<Expr>,
+        expr_span: Span,
+        dest: type_sys::Type,
     },
     Variable {
         name: String,
