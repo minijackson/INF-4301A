@@ -1,6 +1,6 @@
 use ast::{Binding, Span};
 use builtins;
-use error::{AlreadyDeclaredError, UnboundedVarError, UndefinedFunctionError};
+use error::{AlreadyDeclaredError};
 use type_sys::{Value, Type};
 
 use std::collections::{LinkedList, HashMap};
@@ -139,38 +139,30 @@ impl<T> Environment<T> {
         }
     }
 
-    pub fn get_var(&self, name: &String) -> Result<&BindingInfo<T>, UnboundedVarError> {
+    pub fn get_var(&self, name: &String) -> Option<&BindingInfo<T>> {
         self.scopes
             .iter()
             .find(|scope| scope.contains_key(name))
             .map(|scope| scope.get(name).unwrap())
-            // TODO
-            .ok_or(UnboundedVarError::new(name.clone(), Span(0, 0)))
     }
 
-    pub fn get_var_mut(&mut self, name: &String) -> Result<&mut BindingInfo<T>, UnboundedVarError> {
+    pub fn get_var_mut(&mut self, name: &String) -> Option<&mut BindingInfo<T>> {
         self.scopes
             .iter_mut()
             .find(|scope| scope.contains_key(name))
             .map(|scope| scope.get_mut(name).unwrap())
-            // TODO
-            .ok_or(UnboundedVarError::new(name.clone(), Span(0, 0)))
     }
 
-    pub fn get_builtin(&self, name: &String) -> Result<&FunctionInfo, UndefinedFunctionError> {
+    pub fn get_builtin(&self, name: &String) -> Option<&FunctionInfo> {
         self.builtins
             .get(name)
-            // TODO
-            .ok_or(UndefinedFunctionError::new(name.clone(), Span(0, 0)))
     }
 
     pub fn get_builtin_mut(&mut self,
                            name: &String)
-                           -> Result<&mut FunctionInfo, UndefinedFunctionError> {
+                           -> Option<&mut FunctionInfo> {
         self.builtins
             .get_mut(name)
-            // TODO
-            .ok_or(UndefinedFunctionError::new(name.clone(), Span(0, 0)))
     }
 
     pub fn call_builtin(&mut self, name: &String, args: Vec<Value>) -> Value {

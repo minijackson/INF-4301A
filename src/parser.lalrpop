@@ -86,9 +86,10 @@ For: Box<Expr> = {
 //===============
 
 Tier1: Box<Expr> = {
-    <name:Identifier> ":=" <value_start:@L> <value:Expression> <value_end:@R>
+    <name_start:@L> <name:Identifier> <name_end:@R> ":=" <value_start:@L> <value:Expression> <value_end:@R>
         => Box::new(Expr::Assign {
             name,
+            name_span: Span(name_start, name_end),
             value,
             value_span: Span(value_start, value_end),
         }),
@@ -96,8 +97,13 @@ Tier1: Box<Expr> = {
 };
 
 BinOpTier<Op, NextTier>: Box<Expr> = {
-    <lhs:BinOpTier<Op, NextTier>> <op:Op> <rhs:NextTier>
-        => Box::new(Expr::BinaryOp(lhs, rhs, op)),
+    <start:@L> <lhs:BinOpTier<Op, NextTier>> <op:Op> <rhs:NextTier> <end:@R>
+        => Box::new(Expr::BinaryOp {
+            lhs,
+            rhs,
+            op,
+            span: Span(start, end),
+        }),
     NextTier
 };
 
@@ -128,7 +134,12 @@ Tier5Op: BinaryOpCode = {
 };
 
 UnaryOpExp: Box<Expr> = {
-    <sign:UnaryOp> <value:Factor> => Box::new(Expr::UnaryOp(value, sign)),
+    <start:@L> <op:UnaryOp> <expr:Factor> <end:@R>
+        => Box::new(Expr::UnaryOp {
+            expr,
+            op,
+            span: Span(start, end),
+        }),
     Factor
 };
 
@@ -181,7 +192,8 @@ FunctionCall: Box<Expr> = {
 
 Args = SpannedComma<Expression>;
 
-Variable: Box<Expr> = <Identifier> => Box::new(Expr::Variable(<>));
+Variable: Box<Expr> = <start:@L> <name: Identifier> <end:@R>
+    => Box::new(Expr::Variable { name, span: Span(start, end) });
 
 Value: Box<Expr> = {
     r"[0-9]+" => Box::new(Expr::Value(

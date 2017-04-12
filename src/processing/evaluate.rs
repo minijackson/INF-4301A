@@ -118,17 +118,29 @@ impl Evaluate for Expr {
                 type_sys::Value::Void
             }
 
-            &BinaryOp(ref lhs, ref rhs, ref op) => {
+            &BinaryOp {
+                ref lhs,
+                ref rhs,
+                ref op,
+                ..
+            } => {
                 let args = vec![lhs.evaluate(env), rhs.evaluate(env)];
                 env.call_builtin(&op.to_string(), args)
             }
 
-            &UnaryOp(ref expr, ref op) => {
+            &UnaryOp {
+                ref expr,
+                ref op,
+                ..
+            } => {
                 let args = vec![expr.evaluate(env)];
                 env.call_builtin(&format!("un{}", op.to_string()), args)
             }
 
-            &Variable(ref name) => {
+            &Variable {
+                ref name,
+                ..
+            } => {
                 env.get_var(name)
                     .expect(format!("Unbounded variable: {}", name).as_str())
                     .info.0

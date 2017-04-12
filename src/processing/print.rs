@@ -92,7 +92,12 @@ impl Print for Expr {
                         expr.pretty_print(indent))
             }
 
-            &BinaryOp(ref lhs, ref rhs, ref op) => {
+            &BinaryOp {
+                ref lhs,
+                ref rhs,
+                ref op,
+                ..
+            } => {
                 let op_symbol = match op {
                     &Add => "+",
                     &Sub => "-",
@@ -113,14 +118,21 @@ impl Print for Expr {
                         &rhs.pretty_print(indent))
             }
 
-            &UnaryOp(ref exp, ref op) => {
+            &UnaryOp {
+                ref expr,
+                ref op,
+                ..
+            } => {
                 match op {
-                    &Plus => format!("+{}", &exp.pretty_print(indent)),
-                    &Minus => format!("-{}", &exp.pretty_print(indent)),
+                    &Plus => format!("+{}", &expr.pretty_print(indent)),
+                    &Minus => format!("-{}", &expr.pretty_print(indent)),
                 }
             }
 
-            &Variable(ref name) => name.clone(),
+            &Variable {
+                ref name,
+                ..
+            } => name.clone(),
 
             // For strings, use the debug trait to add quotes
             &Value(type_sys::Value::Str(ref value)) => format!("{:?}", value),

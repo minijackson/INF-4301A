@@ -1,6 +1,7 @@
 use ast::*;
 use env::{Environment, BindingInfo, TypeInfo};
-use error::{IncompatibleArmTypesError, MismatchedTypesError, NoSuchSignatureError, TypeCheckError};
+use error::{IncompatibleArmTypesError, MismatchedTypesError, NoSuchSignatureError, TypeCheckError,
+            UnboundedVarError, UndefinedFunctionError};
 use type_sys::Type;
 use type_sys::Type::*;
 
@@ -34,10 +35,10 @@ impl TypeCheck for Expr {
                                      declaration: binding.clone(),
                                      info: TypeInfo(type_),
                                  })
-                    .map_err(|mut err| {
-                        err.span = binding.span;
-                        err
-                    })?;
+                        .map_err(|mut err| {
+                                     err.span = binding.span;
+                                     err
+                                 })?;
                 }
 
                 let final_type = exprs.type_check(env)?;
@@ -47,12 +48,14 @@ impl TypeCheck for Expr {
 
             &mut Assign {
                      ref name,
+                     ref name_span,
                      ref mut value,
                      ref value_span,
                  } => {
                 let assign_type = value.type_check(env)?;
 
-                let var_info = env.get_var(name)?;
+                let var_info = env.get_var(name)
+                    .ok_or(UnboundedVarError::new(name.clone(), *name_span))?;
                 let declared_type = var_info.info.0;
 
                 if declared_type != assign_type {
@@ -81,7 +84,8 @@ impl TypeCheck for Expr {
                     .map(|&mut (ref mut expr, _)| expr.type_check(env))
                     .collect::<Result<_, _>>()?;
 
-                env.get_builtin(name)?
+                env.get_builtin(name)
+                    .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
                     .map(|return_type| *return_type)
                     .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
@@ -164,33 +168,44 @@ impl TypeCheck for Expr {
                 Ok(Void)
             }
 
-            &mut BinaryOp(ref mut lhs, ref mut rhs, ref op) => {
+            &mut BinaryOp {
+                ref mut lhs,
+                ref mut rhs,
+                ref op,
+                ref span,
+            } => {
                 let arg_types = vec![lhs.type_check(env)?, rhs.type_check(env)?];
 
                 let name = &op.to_string();
 
-                env.get_builtin(name)?
+                env.get_builtin(name)
+                    .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
                     .map(|return_type| *return_type)
-                    // TODO
-                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), Span(0, 0))))
+                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
             }
 
-            &mut UnaryOp(ref mut expr, ref op) => {
+            &mut UnaryOp {
+                ref mut expr,
+                ref op,
+                ref span,
+            } => {
                 let arg_types = vec![expr.type_check(env)?];
 
                 let name = &format!("un{}", op.to_string());
 
-                env.get_builtin(name)?
+                env.get_builtin(name)
+                    .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
                     .map(|return_type| *return_type)
-                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), Span(0, 0))))
+                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
             }
 
-            &mut Variable(ref name) => {
+            &mut Variable { ref name, ref span } => {
                 env.get_var(name)
                     .map(|var| var.info.0)
-                    .map_err(TypeCheckError::UnboundedVar)
+                    .ok_or(TypeCheckError::UnboundedVar(UnboundedVarError::new(name.clone(),
+                                                                               *span)))
             }
 
             &mut Value(ref value) => Ok(value.get_type()),

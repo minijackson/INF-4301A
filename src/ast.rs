@@ -16,6 +16,7 @@ pub enum Expr {
     Let(Vec<Binding>, Exprs),
     Assign {
         name: String,
+        name_span: Span,
         value: Box<Expr>,
         value_span: Span,
     },
@@ -26,9 +27,9 @@ pub enum Expr {
     },
     If {
         cond: Box<Expr>,
+        cond_span: Span,
         true_branch: Box<Expr>,
         false_branch: Box<Expr>,
-        cond_span: Span,
         false_branch_span: Span,
     },
     While {
@@ -42,9 +43,21 @@ pub enum Expr {
         expr: Box<Expr>,
         goal_span: Span,
     },
-    BinaryOp(Box<Expr>, Box<Expr>, BinaryOpCode),
-    UnaryOp(Box<Expr>, UnaryOpCode),
-    Variable(String),
+    BinaryOp {
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+        op: BinaryOpCode,
+        span: Span,
+    },
+    UnaryOp {
+        expr: Box<Expr>,
+        op: UnaryOpCode,
+        span: Span,
+    },
+    Variable {
+        name: String,
+        span: Span,
+    },
     Value(type_sys::Value),
 }
 
