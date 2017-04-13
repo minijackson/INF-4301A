@@ -1,4 +1,4 @@
-use ast::{Binding, Span};
+use ast::{Declaration, Span};
 use type_sys::Type;
 
 use itertools::Itertools;
@@ -150,11 +150,11 @@ pub struct AlreadyDeclaredError {
     pub name: String,
     pub span: Span,
     // TODO: make that a reference
-    pub orig_declaration: Binding,
+    pub orig_declaration: Declaration,
 }
 
 impl AlreadyDeclaredError {
-    pub fn new(name: String, orig_declaration: Binding, span: Span) -> Self {
+    pub fn new(name: String, orig_declaration: Declaration, span: Span) -> Self {
         AlreadyDeclaredError {
             name,
             orig_declaration,
@@ -172,7 +172,7 @@ impl Hint for AlreadyDeclaredError {
              },
              Hinter {
                  type_: HinterType::Info,
-                 span: self.orig_declaration.span,
+                 span: self.orig_declaration.span(),
                  message: "First declared here".to_string(),
              }]
     }
@@ -434,7 +434,7 @@ pub struct MismatchedTypesError {
     pub expected: Type,
     pub got: Type,
     // TODO: make that a reference
-    pub binding: Option<Binding>,
+    pub binding: Option<Declaration>,
     pub span: Span,
 }
 
@@ -448,7 +448,7 @@ impl MismatchedTypesError {
         }
     }
 
-    pub fn from_binding(binding: Binding, expected: Type, got: Type, span: Span) -> Self {
+    pub fn from_binding(binding: Declaration, expected: Type, got: Type, span: Span) -> Self {
         MismatchedTypesError {
             expected,
             got,
@@ -467,11 +467,18 @@ impl Hint for MismatchedTypesError {
                            }];
 
         if let Some(ref binding) = self.binding {
+            let binding_type = match *binding {
+                Declaration::Variable(_) => "Variable",
+                Declaration::Argument(_) => "Argument",
+                Declaration::Function(_) => "Function",
+            };
+
             res.push(Hinter {
                 type_: HinterType::Info,
-                span: binding.span,
-                message: format!("Var `{}` is of type `{:?}` as deduced by this declaration",
-                                 binding.variable,
+                span: binding.span(),
+                message: format!("{} `{}` is of type `{:?}` as deduced by this declaration",
+                                 binding_type,
+                                 binding.name(),
                                  self.expected),
             });
         }

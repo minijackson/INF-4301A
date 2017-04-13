@@ -1,4 +1,4 @@
-use ast::{Exprs, Expr, BinaryOpCode, UnaryOpCode, Binding, Span};
+use ast::{Exprs, Expr, BinaryOpCode, UnaryOpCode, Declaration, VariableDecl, FunctionDecl, ArgumentDecl, Span};
 use type_sys;
 
 use std::str::FromStr;
@@ -73,7 +73,7 @@ While: Box<Expr> = {
 };
 
 For: Box<Expr> = {
-    "for" <bind:Declaration> "to" <goal_start:@L> <goal:Expression> <goal_end:@R> "do"  <expr:Expression>
+    "for" <bind:VariableDecl> "to" <goal_start:@L> <goal:Expression> <goal_end:@R> "do"  <expr:Expression>
         => Box::new(Expr::For {
             binding: Box::new(bind),
             goal,
@@ -179,18 +179,59 @@ pub Factor: Box<Expr> = {
 
 Let: Box<Expr> = {
     "let" <declarations:(<Declaration>)*> "in" <exprs:Expressions> "end"
-        => Box::new(Expr::Let(declarations, exprs))
+        => {
+            let mut bindings = Vec::new();
+            let mut function_decls = Vec::new();
+
+            for declaration in declarations.into_iter() {
+                match declaration {
+                    Declaration::Variable(binding) => bindings.push(binding),
+                    Declaration::Function(function_decl) => function_decls.push(function_decl),
+                    Declaration::Argument(_) => unreachable!("Declaration of an argument in a Let block"),
+                }
+            }
+
+            Box::new(Expr::Let(bindings, function_decls, exprs))
+        }
 };
 
-Declaration: Binding = {
+Declaration: Declaration = {
+    <VariableDecl> => Declaration::Variable(<>),
+    <FunctionDecl> => Declaration::Function(<>),
+};
+
+VariableDecl: VariableDecl = {
     <start:@L> "var" <name:Identifier> ":=" <value_start:@L> <exp:Expression> <value_end:@R>
-        => Binding{
-            variable: name,
+        => VariableDecl {
+            name,
             value: *exp,
             span: Span(start, value_end),
             value_span: Span(value_start, value_end),
         }
 };
+
+FunctionDecl: FunctionDecl = {
+    <signature_start:@L> "function" <name:Identifier> "(" <args:ArgDecls> ")" ":" <return_type:Type> <signature_end:@R> "=" <body_start:@L> <body:Expression> <body_end:@R>
+        => FunctionDecl {
+            name,
+            args,
+            return_type,
+            signature_span: Span(signature_start, signature_end),
+            body,
+            body_span: Span(body_start, body_end),
+        }
+};
+
+ArgDecl: ArgumentDecl = {
+    <start:@L> <name:Identifier> ":" <type_:Type> <end:@R>
+        => ArgumentDecl{
+            name,
+            type_,
+            span: Span(start, end),
+        }
+};
+
+ArgDecls = Comma<ArgDecl>;
 
 FunctionCall: Box<Expr> = {
     <start:@L> <name:Identifier> "(" <args:Args> ")" <end:@R>
@@ -209,13 +250,13 @@ Variable: Box<Expr> = <start:@L> <name: Identifier> <end:@R>
 Value: Box<Expr> = {
     r"[0-9]+" => Box::new(Expr::Value(
                     type_sys::Value::Integer(
-                        i32::from_str(<>).unwrap()
+                        i64::from_str(<>).unwrap()
                         )
                     )
                  ),
     r"[0-9]+\.[0-9]*" => Box::new(Expr::Value(
                     type_sys::Value::Float(
-                        f32::from_str(<>).unwrap()
+                        f64::from_str(<>).unwrap()
                         )
                     )
                  ),

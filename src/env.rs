@@ -1,4 +1,4 @@
-use ast::{Binding, Span};
+use ast::{Declaration, FunctionDecl, ArgumentDecl, VariableDecl, Span};
 use builtins;
 use error::{AlreadyDeclaredError};
 use type_sys::{Value, Type};
@@ -7,22 +7,36 @@ use std::collections::{LinkedList, HashMap};
 use std::collections::hash_map::Entry;
 
 pub struct Environment<T> {
-    scopes: LinkedList<HashMap<String, BindingInfo<T>>>,
-    builtins: HashMap<String, FunctionInfo>,
+    scopes: LinkedList<Scope<T>>,
+    builtins: HashMap<String, BuiltinInfo>,
 }
 
-pub struct FunctionInfo {
+pub struct Scope<T> {
+    pub variables: HashMap<String, BindingInfo<T>>,
+    pub functions: HashMap<String, FunctionDecl>,
+}
+
+impl<T> Scope<T> {
+    pub fn new() -> Self {
+        Scope {
+            variables: HashMap::new(),
+            functions: HashMap::new(),
+        }
+    }
+}
+
+pub struct BuiltinInfo {
     pub name: String,
     pub signatures: HashMap<Vec<Type>, Type>,
     pub call: Box<FnMut(Vec<Value>) -> Value + 'static>,
 }
 
-impl FunctionInfo {
+impl BuiltinInfo {
     pub fn new(name: String,
                signatures: HashMap<Vec<Type>, Type>,
                call: Box<FnMut(Vec<Value>) -> Value>)
                -> Self {
-        FunctionInfo {
+        BuiltinInfo {
             name,
             signatures,
             call,
@@ -33,15 +47,74 @@ impl FunctionInfo {
         self.signatures.contains_key(arg_types)
     }
 
-    pub fn return_type(&self, arg_types: &Vec<Type>) -> Option<&Type> {
+    pub fn return_type(&self, arg_types: &Vec<Type>) -> Option<Type> {
         self.signatures
             .get(arg_types)
+            .map(|&type_ref| type_ref)
     }
 }
 
-pub struct BindingInfo<T> {
-    pub declaration: Binding,
-    pub info: T,
+pub enum BindingInfo<T> {
+    Variable {
+        declaration: VariableDecl,
+        info: T,
+    },
+    Argument {
+        declaration: ArgumentDecl,
+        info: T,
+    }
+}
+
+impl<T> BindingInfo<T> {
+
+    pub fn get_declaration(&self) -> Declaration {
+        use self::BindingInfo::*;
+
+        match *self {
+            Variable { ref declaration, .. } => Declaration::Variable(declaration.clone()),
+            Argument { ref declaration, .. } => Declaration::Argument(declaration.clone()),
+        }
+    }
+
+}
+
+impl BindingInfo<TypeInfo> {
+
+    pub fn get_type(&self) -> Type {
+        use self::BindingInfo::*;
+
+        match *self {
+            Variable { ref info, .. } => info.0,
+            Argument { ref info, .. } => info.0,
+        }
+    }
+
+}
+
+impl BindingInfo<ValueInfo> {
+
+    pub fn get_value(&self) -> &Value {
+        use self::BindingInfo::*;
+
+        match *self {
+            Variable { ref info, .. } => &info.0,
+            Argument { ref info, .. } => &info.0,
+        }
+    }
+
+    pub fn set_value(&mut self, value: Value) {
+        use self::BindingInfo::*;
+
+        match *self {
+            Variable { ref mut info, .. } => {
+                info.0 = value;
+            }
+            Argument { ref mut info, .. } => {
+                info.0 = value;
+            }
+        }
+    }
+
 }
 
 pub struct TypeInfo(pub Type);
@@ -93,29 +166,29 @@ impl<T> Environment<T> {
         Self {
             scopes: LinkedList::new(),
             builtins: quick_hashmap!(
-                "+".to_string() => FunctionInfo::new("+".to_string(), plus_sig.clone(), Box::new(builtins::plus)),
-                "-".to_string() => FunctionInfo::new("-".to_string(), arit_sig.clone(), Box::new(builtins::minus)),
-                "*".to_string() => FunctionInfo::new("*".to_string(), arit_sig.clone(), Box::new(builtins::mul)),
-                "/".to_string() => FunctionInfo::new("/".to_string(), arit_sig,         Box::new(builtins::div)),
+                "+".to_string() => BuiltinInfo::new("+".to_string(), plus_sig.clone(), Box::new(builtins::plus)),
+                "-".to_string() => BuiltinInfo::new("-".to_string(), arit_sig.clone(), Box::new(builtins::minus)),
+                "*".to_string() => BuiltinInfo::new("*".to_string(), arit_sig.clone(), Box::new(builtins::mul)),
+                "/".to_string() => BuiltinInfo::new("/".to_string(), arit_sig,         Box::new(builtins::div)),
 
-                "<".to_string()  => FunctionInfo::new("<".to_string(),  cmp_sig.clone(), Box::new(builtins::lower)),
-                "<=".to_string() => FunctionInfo::new("<=".to_string(), cmp_sig.clone(), Box::new(builtins::lower_eq)),
-                ">".to_string()  => FunctionInfo::new(">".to_string(),  cmp_sig.clone(), Box::new(builtins::greater)),
-                ">=".to_string() => FunctionInfo::new(">=".to_string(), cmp_sig.clone(), Box::new(builtins::greater_eq)),
-                "=".to_string()  => FunctionInfo::new("=".to_string(),  cmp_sig.clone(), Box::new(builtins::equal)),
-                "<>".to_string() => FunctionInfo::new("<>".to_string(), cmp_sig,         Box::new(builtins::not_equal)),
+                "<".to_string()  => BuiltinInfo::new("<".to_string(),  cmp_sig.clone(), Box::new(builtins::lower)),
+                "<=".to_string() => BuiltinInfo::new("<=".to_string(), cmp_sig.clone(), Box::new(builtins::lower_eq)),
+                ">".to_string()  => BuiltinInfo::new(">".to_string(),  cmp_sig.clone(), Box::new(builtins::greater)),
+                ">=".to_string() => BuiltinInfo::new(">=".to_string(), cmp_sig.clone(), Box::new(builtins::greater_eq)),
+                "=".to_string()  => BuiltinInfo::new("=".to_string(),  cmp_sig.clone(), Box::new(builtins::equal)),
+                "<>".to_string() => BuiltinInfo::new("<>".to_string(), cmp_sig,         Box::new(builtins::not_equal)),
 
-                "un+".to_string() => FunctionInfo::new("un+".to_string(), unary_sig.clone(), Box::new(builtins::un_plus)),
-                "un-".to_string() => FunctionInfo::new("un-".to_string(), unary_sig,         Box::new(builtins::un_minus)),
+                "un+".to_string() => BuiltinInfo::new("un+".to_string(), unary_sig.clone(), Box::new(builtins::un_plus)),
+                "un-".to_string() => BuiltinInfo::new("un-".to_string(), unary_sig,         Box::new(builtins::un_minus)),
 
-                "print".to_string() => FunctionInfo::new("print".to_string(), print_sig.clone(), Box::new(builtins::print)),
-                "println".to_string() => FunctionInfo::new("println".to_string(), print_sig, Box::new(builtins::println))
+                "print".to_string() => BuiltinInfo::new("print".to_string(), print_sig.clone(), Box::new(builtins::print)),
+                "println".to_string() => BuiltinInfo::new("println".to_string(), print_sig, Box::new(builtins::println))
                 ),
         }
     }
 
     pub fn enter_scope(&mut self) {
-        self.scopes.push_front(HashMap::new());
+        self.scopes.push_front(Scope::new());
     }
 
     pub fn leave_scope(&mut self) {
@@ -124,13 +197,14 @@ impl<T> Environment<T> {
             .expect("Tried to leave a scope when not in a scope");
     }
 
-    pub fn declare(&mut self, name: String, info: BindingInfo<T>) -> Result<(), AlreadyDeclaredError> {
-        let scope = self.scopes
+    pub fn declare_var(&mut self, name: String, info: BindingInfo<T>) -> Result<(), AlreadyDeclaredError> {
+        let ref mut scope = self.scopes
             .front_mut()
-            .expect("Trying to declare a variable out of scope");
+            .expect("Trying to declare a variable out of scope")
+            .variables;
 
         match scope.entry(name.clone()) {
-            Entry::Occupied(entry) => Err(AlreadyDeclaredError::new(name, entry.get().declaration.clone(), Span(0, 0))),
+            Entry::Occupied(entry) => Err(AlreadyDeclaredError::new(name, entry.get().get_declaration(), Span(0, 0))),
 
             Entry::Vacant(vacant_entry) => {
                 vacant_entry.insert(info);
@@ -142,25 +216,48 @@ impl<T> Environment<T> {
     pub fn get_var(&self, name: &String) -> Option<&BindingInfo<T>> {
         self.scopes
             .iter()
-            .find(|scope| scope.contains_key(name))
-            .map(|scope| scope.get(name).unwrap())
+            .find(|scope| scope.variables.contains_key(name))
+            .map(|scope| scope.variables.get(name).unwrap())
     }
 
     pub fn get_var_mut(&mut self, name: &String) -> Option<&mut BindingInfo<T>> {
         self.scopes
             .iter_mut()
-            .find(|scope| scope.contains_key(name))
-            .map(|scope| scope.get_mut(name).unwrap())
+            .find(|scope| scope.variables.contains_key(name))
+            .map(|scope| scope.variables.get_mut(name).unwrap())
     }
 
-    pub fn get_builtin(&self, name: &String) -> Option<&FunctionInfo> {
+    pub fn declare_func(&mut self, decl: FunctionDecl) -> Result<(), AlreadyDeclaredError> {
+        let ref mut scope = self.scopes
+            .front_mut()
+            .expect("Trying to declare a variable out of scope")
+            .functions;
+
+        match scope.entry(decl.name.clone()) {
+            Entry::Occupied(entry) => Err(AlreadyDeclaredError::new(decl.name, Declaration::Function(entry.get().clone()), decl.signature_span)),
+
+            Entry::Vacant(vacant_entry) => {
+                vacant_entry.insert(decl);
+                Ok(())
+            }
+        }
+    }
+
+    pub fn get_func(&self, name: &String) -> Option<&FunctionDecl> {
+        self.scopes
+            .iter()
+            .find(|scope| scope.functions.contains_key(name))
+            .map(|scope| scope.functions.get(name).unwrap())
+    }
+
+    pub fn get_builtin(&self, name: &String) -> Option<&BuiltinInfo> {
         self.builtins
             .get(name)
     }
 
     pub fn get_builtin_mut(&mut self,
                            name: &String)
-                           -> Option<&mut FunctionInfo> {
+                           -> Option<&mut BuiltinInfo> {
         self.builtins
             .get_mut(name)
     }
@@ -177,6 +274,6 @@ impl Environment<ValueInfo> {
     pub fn assign(&mut self, name: &String, value: Value) {
         self.get_var_mut(name)
             .expect(format!("Could not find variable {} in current scope", name).as_str())
-            .info.0 = value;
+            .set_value(value);
     }
 }

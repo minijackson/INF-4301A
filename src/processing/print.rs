@@ -29,28 +29,28 @@ impl Print for Expr {
                 format!("(\n{}{})", fmt_exprs, ws)
             }
 
-            &Let(ref bindings, ref exprs) => {
-                format!("let\n{}\n{}in\n{}{}end",
+            &Let(ref bindings, ref function_decls, ref exprs) => {
+                format!("let\n{}{}{}in\n{}{}end",
                         bindings
                             .iter()
-                            .map(|binding| binding.pretty_print(indent + 2))
-                            .join("\n"),
+                            .map(|binding| format!("{}\n", binding.pretty_print(indent + 2)))
+                            .join(""),
+                        function_decls
+                            .iter()
+                            .map(|binding| format!("{}\n", binding.pretty_print(indent + 2)))
+                            .join(""),
                         ws,
                         exprs.pretty_print(indent + 2),
                         ws)
             }
 
             &Assign {
-                ref name,
-                ref value,
-                ..
-            } => format!("{} := {}", name, value.pretty_print(indent)),
+                 ref name,
+                 ref value,
+                 ..
+             } => format!("{} := {}", name, value.pretty_print(indent)),
 
-            &Function {
-                ref name,
-                ref args,
-                ..
-            } => {
+            &Function { ref name, ref args, .. } => {
                 format!("{}({})",
                         name,
                         args.iter()
@@ -59,22 +59,18 @@ impl Print for Expr {
             }
 
             &If {
-                ref cond,
-                ref true_branch,
-                ref false_branch,
-                ..
-            } => {
+                 ref cond,
+                 ref true_branch,
+                 ref false_branch,
+                 ..
+             } => {
                 format!("(if {} then {} else {})",
                         cond.pretty_print(indent),
                         true_branch.pretty_print(indent),
                         false_branch.pretty_print(indent))
             }
 
-            &While {
-                ref cond,
-                ref expr,
-                ..
-            } => {
+            &While { ref cond, ref expr, .. } => {
                 format!("(while {} do {})",
                         cond.pretty_print(indent),
                         expr.pretty_print(indent))
@@ -93,11 +89,11 @@ impl Print for Expr {
             }
 
             &BinaryOp {
-                ref lhs,
-                ref rhs,
-                ref op,
-                ..
-            } => {
+                 ref lhs,
+                 ref rhs,
+                 ref op,
+                 ..
+             } => {
                 let op_symbol = match op {
                     &Add => "+",
                     &Sub => "-",
@@ -118,29 +114,18 @@ impl Print for Expr {
                         &rhs.pretty_print(indent))
             }
 
-            &UnaryOp {
-                ref expr,
-                ref op,
-                ..
-            } => {
+            &UnaryOp { ref expr, ref op, .. } => {
                 match op {
                     &Plus => format!("(+{})", expr.pretty_print(indent)),
                     &Minus => format!("(-{})", expr.pretty_print(indent)),
                 }
             }
 
-            &Cast {
-                ref expr,
-                ref dest,
-                ..
-            } => {
+            &Cast { ref expr, ref dest, .. } => {
                 format!("({} as {:?})", expr.pretty_print(indent), dest)
             }
 
-            &Variable {
-                ref name,
-                ..
-            } => name.clone(),
+            &Variable { ref name, .. } => name.clone(),
 
             // For strings, use the debug trait to add quotes
             &Value(type_sys::Value::Str(ref value)) => format!("{:?}", value),
@@ -164,15 +149,40 @@ impl Print for Exprs {
     }
 }
 
-impl Print for Binding {
+impl Print for VariableDecl {
     fn pretty_print(&self, indent: usize) -> String {
         let strws = " ".repeat(indent);
         let ws = strws.as_str();
 
         format!("{}var {} := {}",
                 ws,
-                self.variable,
+                self.name,
                 self.value.pretty_print(indent))
+    }
+}
+
+impl Print for FunctionDecl {
+    fn pretty_print(&self, indent: usize) -> String {
+        let strws = " ".repeat(indent);
+        let ws = strws.as_str();
+
+        let args = self.args
+            .iter()
+            .map(|ref arg| arg.pretty_print(indent))
+            .join(", ");
+
+        format!("{}function {}({}) : {:?} = {}",
+                ws,
+                self.name,
+                args,
+                self.return_type,
+                self.body.pretty_print(indent))
+    }
+}
+
+impl Print for ArgumentDecl {
+    fn pretty_print(&self, _indent: usize) -> String {
+        format!("{}: {:?}", self.name, self.type_)
     }
 }
 
@@ -269,6 +279,12 @@ mod test {
   var x := 2
 in
   2
+end");
+
+        perfect_coding!("let
+  function x(a: Integer, b: Integer) : Integer = (a * b)
+in
+  x(1, 2)
 end");
 
         perfect_coding!("let

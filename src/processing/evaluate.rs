@@ -24,19 +24,25 @@ impl Evaluate for Expr {
         match self {
             &Grouping(ref exprs) => exprs.evaluate(env),
 
-            &Let(ref bindings, ref exprs) => {
+            &Let(ref bindings, ref function_decls, ref exprs) => {
                 env.enter_scope();
+
                 for binding in bindings.iter() {
                     let value = binding.value.evaluate(env);
-                    env.declare(binding.variable.clone(),
-                                 BindingInfo {
+                    env.declare_var(binding.name.clone(),
+                                 BindingInfo::Variable {
                                      declaration: binding.clone(),
                                      info: ValueInfo(value),
                                  })
                         .unwrap();
                 }
 
+                for function_decl in function_decls.iter() {
+                    env.declare_func(function_decl.clone()).unwrap();
+                }
+
                 let rv = exprs.evaluate(env);
+
                 env.leave_scope();
                 rv
             }
@@ -56,8 +62,39 @@ impl Evaluate for Expr {
                 ref args,
                 ..
             } => {
-                let args = args.iter().map(|&(ref expr, _)| expr.evaluate(env)).collect();
-                env.call_builtin(&name, args)
+                let args = args.iter().map(|&(ref expr, _)| expr.evaluate(env)).collect::<Vec<type_sys::Value>>();
+
+                let mut user_defined = false;
+                let mut user_func = None;
+
+                if let Some(func) = env.get_func(&name) {
+                    user_defined = true;
+
+                    user_func = Some(func.clone());
+                }
+
+                if user_defined {
+                    let func = user_func.unwrap();
+
+                    env.enter_scope();
+
+                    for (ind, value) in args.into_iter().enumerate() {
+                        let ref current_arg = func.args[ind];
+
+                        env.declare_var(current_arg.name.clone(), BindingInfo::Argument {
+                            declaration: current_arg.clone(),
+                            info: ValueInfo(value),
+                        })
+                        .unwrap();
+                    }
+
+                    let rv = func.body.evaluate(env);
+
+                    env.leave_scope();
+                    rv
+                } else {
+                    env.call_builtin(&name, args)
+                }
             }
 
             &If {
@@ -93,8 +130,8 @@ impl Evaluate for Expr {
                 env.enter_scope();
 
                 let val = binding.value.evaluate(env);
-                env.declare(binding.variable.clone(),
-                             BindingInfo {
+                env.declare_var(binding.name.clone(),
+                             BindingInfo::Variable {
                                  declaration: (**binding).clone(),
                                  info: ValueInfo(val.clone()),
                              })
@@ -106,7 +143,7 @@ impl Evaluate for Expr {
                         while val < upper {
                             expr.evaluate(env);
                             val = val + 1;
-                            env.assign(&binding.variable, type_sys::Value::Integer(val));
+                            env.assign(&binding.name, type_sys::Value::Integer(val));
                         }
                     }
                     other => {
@@ -151,7 +188,7 @@ impl Evaluate for Expr {
             } => {
                 env.get_var(name)
                     .expect(format!("Unbounded variable: {}", name).as_str())
-                    .info.0
+                    .get_value()
                     .clone()
             }
 

@@ -68,8 +68,8 @@ impl Type {
 #[derive(Debug,Clone,PartialEq)]
 pub enum Value {
     Void,
-    Integer(i32),
-    Float(f32),
+    Integer(i64),
+    Float(f64),
     Bool(bool),
     Str(String), /* Array, */
 }
@@ -81,7 +81,7 @@ impl Value {
         match *self {
             Integer(0) => Ok(false),
             Integer(_) => Ok(true),
-            Float(0f32) => Ok(false),
+            Float(0f64) => Ok(false),
             Float(_) => Ok(true),
             Bool(false) => Ok(false),
             Bool(true) => Ok(true),
@@ -117,7 +117,7 @@ impl Value {
                 match dest {
                     Type::Void => Void,
                     Type::Integer => Integer(val),
-                    Type::Float => Float(val as f32),
+                    Type::Float => Float(val as f64),
                     Type::Bool => Bool(if val == 1 { true } else { false }),
                     Type::Str => Str(val.to_string()),
                 }
@@ -125,9 +125,9 @@ impl Value {
             Float(val) => {
                 match dest {
                     Type::Void => Void,
-                    Type::Integer => Integer(val as i32),
+                    Type::Integer => Integer(val as i64),
                     Type::Float => Float(val),
-                    Type::Bool => Bool(if val == 1f32 { true } else { false }),
+                    Type::Bool => Bool(if val == 1f64 { true } else { false }),
                     Type::Str => Str(val.to_string()),
                 }
             }

@@ -13,7 +13,7 @@ pub struct Exprs {
 #[derive(Debug,Clone,PartialEq)]
 pub enum Expr {
     Grouping(Exprs),
-    Let(Vec<Binding>, Exprs),
+    Let(Vec<VariableDecl>, Vec<FunctionDecl>, Exprs),
     Assign {
         name: String,
         name_span: Span,
@@ -39,7 +39,7 @@ pub enum Expr {
         cond_span: Span,
     },
     For {
-        binding: Box<Binding>,
+        binding: Box<VariableDecl>,
         goal: Box<Expr>,
         goal_span: Span,
         expr: Box<Expr>,
@@ -124,9 +124,67 @@ impl fmt::Display for UnaryOpCode {
 }
 
 #[derive(Debug,Clone,PartialEq)]
-pub struct Binding {
-    pub variable: String,
+pub enum Declaration {
+    Variable(VariableDecl),
+    Function(FunctionDecl),
+    Argument(ArgumentDecl),
+}
+
+impl Declaration {
+    pub fn name(&self) -> &String {
+        use self::Declaration::*;
+
+        match *self {
+            Variable(VariableDecl { ref name, .. }) => name,
+            Function(FunctionDecl { ref name, .. }) => name,
+            Argument(ArgumentDecl { ref name, .. }) => name,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        use self::Declaration::*;
+
+        match *self {
+            Variable(VariableDecl { span, .. }) => span,
+            Function(FunctionDecl { signature_span, .. }) => signature_span,
+            Argument(ArgumentDecl { span, .. }) => span,
+        }
+    }
+}
+
+#[derive(Debug,Clone,PartialEq)]
+pub struct VariableDecl {
+    pub name: String,
     pub value: Expr,
     pub span: Span,
     pub value_span: Span,
+}
+
+#[derive(Debug,Clone,PartialEq)]
+pub struct FunctionDecl {
+    pub name: String,
+    pub args: Vec<ArgumentDecl>,
+    pub return_type: type_sys::Type,
+    pub signature_span: Span,
+    pub body: Box<Expr>,
+    pub body_span: Span,
+}
+
+impl FunctionDecl {
+    pub fn return_type(&self, arg_types: &Vec<type_sys::Type>) -> Option<type_sys::Type> {
+        if arg_types.iter()
+            .zip(&self.args)
+            .all(|(&type_got, &ArgumentDecl { type_, .. })| type_got == type_) {
+            Some(self.return_type)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug,Clone,PartialEq)]
+pub struct ArgumentDecl {
+    pub name: String,
+    pub type_: type_sys::Type,
+    pub span: Span,
 }

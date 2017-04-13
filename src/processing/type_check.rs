@@ -9,7 +9,6 @@ pub trait TypeCheck {
     fn type_check(&mut self, env: &mut Environment<TypeInfo>) -> Result<Type, TypeCheckError>;
 }
 
-
 impl TypeCheck for Exprs {
     fn type_check(&mut self, env: &mut Environment<TypeInfo>) -> Result<Type, TypeCheckError> {
         let mut final_type = Void;
@@ -19,6 +18,7 @@ impl TypeCheck for Exprs {
         Ok(final_type)
     }
 }
+
 impl TypeCheck for Expr {
     fn type_check(&mut self, env: &mut Environment<TypeInfo>) -> Result<Type, TypeCheckError> {
         use ast::Expr::*;
@@ -26,12 +26,13 @@ impl TypeCheck for Expr {
         match self {
             &mut Grouping(ref mut exprs) => exprs.type_check(env),
 
-            &mut Let(ref mut bindings, ref mut exprs) => {
+            &mut Let(ref mut bindings, ref mut function_decls, ref mut exprs) => {
                 env.enter_scope();
+
                 for binding in bindings.iter_mut() {
                     let type_ = binding.value.type_check(env)?;
-                    env.declare(binding.variable.clone(),
-                                 BindingInfo {
+                    env.declare_var(binding.name.clone(),
+                                 BindingInfo::Variable {
                                      declaration: binding.clone(),
                                      info: TypeInfo(type_),
                                  })
@@ -41,7 +42,15 @@ impl TypeCheck for Expr {
                                  })?;
                 }
 
+                for function_decl in function_decls.iter_mut() {
+                    // Declare before cheking the type of the body, to allow
+                    // recursion.
+                    env.declare_func(function_decl.clone())?;
+                    function_decl.type_check(env)?;
+                }
+
                 let final_type = exprs.type_check(env)?;
+
                 env.leave_scope();
                 Ok(final_type)
             }
@@ -56,13 +65,13 @@ impl TypeCheck for Expr {
 
                 let var_info = env.get_var(name)
                     .ok_or(UnboundedVarError::new(name.clone(), *name_span))?;
-                let declared_type = var_info.info.0;
+                let declared_type = var_info.get_type();
 
                 if declared_type != assign_type {
                     return Err(
                         TypeCheckError::MismatchedTypes(
                             MismatchedTypesError::from_binding(
-                                var_info.declaration.clone(),
+                                var_info.get_declaration().clone(),
                                 declared_type,
                                 assign_type,
                                 *value_span
@@ -84,11 +93,24 @@ impl TypeCheck for Expr {
                     .map(|&mut (ref mut expr, _)| expr.type_check(env))
                     .collect::<Result<_, _>>()?;
 
-                env.get_builtin(name)
-                    .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
-                    .return_type(&arg_types)
-                    .map(|return_type| *return_type)
-                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
+                let mut user_defined = false;
+                let mut func = None;
+
+                if let Some(user_func) = env.get_func(name) {
+                    user_defined = true;
+                    func = Some(user_func.clone());
+                }
+
+                if user_defined {
+                    func.unwrap()
+                        .return_type(&arg_types)
+                        .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
+                } else if let Some(builtin) = env.get_builtin_mut(name) {
+                    builtin.return_type(&arg_types)
+                        .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
+                } else {
+                    Err(TypeCheckError::UndefinedFunction(UndefinedFunctionError::new(name.clone(), *span)))
+                }
             }
 
             &mut If {
@@ -152,8 +174,8 @@ impl TypeCheck for Expr {
                                                                                          binding.value_span)));
                 }
 
-                env.declare(binding.variable.clone(),
-                             BindingInfo {
+                env.declare_var(binding.name.clone(),
+                             BindingInfo::Variable {
                                  declaration: (**binding).clone(),
                                  info: TypeInfo(binding_type),
                              })?;
@@ -183,7 +205,6 @@ impl TypeCheck for Expr {
                 env.get_builtin(name)
                     .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
-                    .map(|return_type| *return_type)
                     .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
             }
 
@@ -199,7 +220,6 @@ impl TypeCheck for Expr {
                 env.get_builtin(name)
                     .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
-                    .map(|return_type| *return_type)
                     .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
             }
 
@@ -220,7 +240,7 @@ impl TypeCheck for Expr {
 
             &mut Variable { ref name, ref span } => {
                 env.get_var(name)
-                    .map(|var| var.info.0)
+                    .map(|var| var.get_type())
                     .ok_or(TypeCheckError::UnboundedVar(UnboundedVarError::new(name.clone(),
                                                                                *span)))
             }
@@ -228,5 +248,38 @@ impl TypeCheck for Expr {
             &mut Value(ref value) => Ok(value.get_type()),
 
         }
+    }
+}
+
+impl TypeCheck for FunctionDecl {
+    fn type_check(&mut self, env: &mut Environment<TypeInfo>) -> Result<Type, TypeCheckError> {
+        env.enter_scope();
+
+        for ref arg in self.args.iter() {
+            env.declare_var(arg.name.clone(), BindingInfo::Argument {
+                declaration: (*arg).clone(),
+                info: TypeInfo(arg.type_),
+            })
+            .map_err(|mut err| {
+                err.span = arg.span;
+                err
+            })?;
+        }
+
+        let final_type = self.body.type_check(env)?;
+
+        if final_type != self.return_type {
+            return Err(TypeCheckError::MismatchedTypes(
+                            MismatchedTypesError::from_binding(
+                                Declaration::Function(self.clone()),
+                                self.return_type,
+                                final_type,
+                                self.body_span
+                                )
+                            ));
+        }
+
+        env.leave_scope();
+        Ok(self.return_type)
     }
 }
