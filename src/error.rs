@@ -585,7 +585,7 @@ impl<'a> Hint for ParseError<'a> {
                      UnrecognizedToken {
                          token: None,
                          expected: _,
-                     } => panic!("TODO"),
+                     } => return vec![],
                      ExtraToken { token: (start, _, end) } => Span(start, end),
                  },
                  message: "Encountered here".to_string(),
