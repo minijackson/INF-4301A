@@ -653,7 +653,7 @@ impl<'a> Hint for REPLError<'a> {
         use self::REPLError::*;
 
         match *self {
-            Readline(_) => panic!("TODO"),
+            Readline(_) => vec![],
             Parse(ref err) => err.hints(),
         }
     }
