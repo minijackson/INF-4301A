@@ -160,7 +160,13 @@ impl fmt::Display for Value {
 
         match *self {
             Integer(ref value) => write!(f, "{}", value),
-            Float(ref value) => write!(f, "{}", value),
+            Float(ref value) => {
+                if value.floor() == *value {
+                    write!(f, "{}.", value)
+                } else {
+                    write!(f, "{}", value)
+                }
+            }
             Bool(ref value) => write!(f, "{}", value),
             Str(ref value) => write!(f, "{}", value),
             Void => Err(fmt::Error::default()),

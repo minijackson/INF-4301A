@@ -371,8 +371,7 @@ end");
         perfect_coding!("42");
         perfect_coding!("69");
         perfect_coding!("1337");
-        // TODO
-        //perfect_coding!("10.");
+        perfect_coding!("10.");
         perfect_coding!("13.37");
         perfect_coding!(r#""hello""#);
         perfect_coding!(r#""hel\"lo""#);
