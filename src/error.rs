@@ -556,7 +556,7 @@ impl Error for IncompatibleArmTypesError {
     }
 }
 
-pub type OrigPopParseError<'a> = lalrpop_util::ParseError<usize, (usize, &'a str), ()>;
+pub type OrigPopParseError<'a> = lalrpop_util::ParseError<usize, (usize, &'a str), UserParseError>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError<'a> {
@@ -568,6 +568,8 @@ pub enum ParseError<'a> {
     },
 
     ExtraToken { token: (usize, (usize, &'a str), usize), },
+
+    User { error: UserParseError },
 }
 
 impl<'a> Hint for ParseError<'a> {
@@ -587,6 +589,7 @@ impl<'a> Hint for ParseError<'a> {
                          expected: _,
                      } => return vec![],
                      ExtraToken { token: (start, _, end) } => Span(start, end),
+                     User { ref error } => return error.hints(),
                  },
                  message: "Encountered here".to_string(),
              }]
@@ -603,7 +606,7 @@ impl<'a> From<OrigPopParseError<'a>> for ParseError<'a> {
                 ParseError::UnrecognizedToken { token, expected }
             }
             lalrpop_util::ParseError::ExtraToken { token } => ParseError::ExtraToken { token },
-            lalrpop_util::ParseError::User { error: _ } => unreachable!("User parse error encountered"),
+            lalrpop_util::ParseError::User { error } => ParseError::User { error },
         }
     }
 }
@@ -628,11 +631,56 @@ impl<'a> fmt::Display for ParseError<'a> {
                 Ok(())
             }
             ExtraToken { token: (_, (_, ref token), _) } => write!(f, "Extra token `{}`", token),
+            User { ref error } => write!(f, "{}", error),
         }
     }
 }
 
 impl<'a> Error for ParseError<'a> {
+    fn description(&self) -> &str {
+        "parse error"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        use self::ParseError::*;
+
+        match *self {
+            User { ref error } => Some(error),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum UserParseError {
+    IntegerOverflow { span: Span },
+}
+
+impl Hint for UserParseError {
+    fn hints(&self) -> Vec<Hinter> {
+        use self::UserParseError::*;
+
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: match *self {
+                     IntegerOverflow { span } => span,
+                 },
+                 message: "inputted here".to_string(),
+             }]
+    }
+}
+
+impl fmt::Display for UserParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::UserParseError::*;
+
+        write!(f, "{}", match *self {
+            IntegerOverflow { .. } => "Integer overflow",
+        })
+    }
+}
+
+impl Error for UserParseError {
     fn description(&self) -> &str {
         "parse error"
     }

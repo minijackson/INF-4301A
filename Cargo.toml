@@ -5,7 +5,8 @@ authors = ["Minijackson <minijackson@riseup.net>"]
 build = "build.rs"
 
 [build-dependencies]
-lalrpop = "0.12.5"
+#lalrpop = "0.13.0"
+lalrpop = { git = "https://github.com/minijackson/lalrpop", branch = "user_uses_intern_token" }
 
 [dependencies]
 lalrpop-util = "0.12.5"

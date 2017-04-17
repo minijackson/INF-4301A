@@ -1,9 +1,16 @@
 use ast::{Exprs, Expr, BinaryOpCode, UnaryOpCode, Declaration, VariableDecl, FunctionDecl, ArgumentDecl, Span};
+use error::UserParseError;
 use type_sys;
+
+use lalrpop_util::ParseError;
 
 use std::str::FromStr;
 
 grammar;
+
+extern {
+    type Error = UserParseError;
+}
 
 Comma<T>: Vec<T> = {
     <v:(<T> ",")*> <e:T?> => match e {
@@ -248,12 +255,19 @@ Variable: Box<Expr> = <start:@L> <name: Identifier> <end:@R>
     => Box::new(Expr::Variable { name, span: Span(start, end) });
 
 Value: Box<Expr> = {
-    r"[0-9]+" => Box::new(Expr::Value(
-                    type_sys::Value::Integer(
-                        i64::from_str(<>).unwrap()
-                        )
-                    )
-                 ),
+    <start:@L> <val:r"[0-9]+"> <end:@R> =>?
+                        i64::from_str(val)
+                            .map_err(|_| {
+                                ParseError::User {
+                                    error: UserParseError::IntegerOverflow {
+                                        span: Span(start, end)
+                                    }
+                                }
+                            })
+                            .map(type_sys::Value::Integer)
+                            .map(Expr::Value)
+                            .map(Box::new),
+
     r"[0-9]+\.[0-9]*" => Box::new(Expr::Value(
                     type_sys::Value::Float(
                         f64::from_str(<>).unwrap()
