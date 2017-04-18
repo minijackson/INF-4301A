@@ -1,7 +1,8 @@
 use ast::*;
 use env::{Environment, BindingInfo, TypeInfo};
 use error::{ConversionError, IncompatibleArmTypesError, MismatchedTypesError,
-            NoSuchSignatureError, TypeCheckError, UnboundedVarError, UndefinedFunctionError};
+            NoSuchSignatureError, TypeCheckError, UnboundedVarError, UndefinedFunctionError,
+            VoidVarDeclartionError};
 use type_sys::Type;
 use type_sys::Type::*;
 
@@ -31,11 +32,18 @@ impl TypeCheck for Expr {
 
                 for binding in bindings.iter_mut() {
                     let type_ = binding.value.type_check(env)?;
+
+                    if type_ == Type::Void {
+                        return Err(VoidVarDeclartionError::new(binding.name.clone(),
+                                                               binding.value_span)
+                                           .into());
+                    }
+
                     env.declare_var(binding.name.clone(),
-                                 BindingInfo::Variable {
-                                     declaration: binding.clone(),
-                                     info: TypeInfo(type_),
-                                 })
+                                     BindingInfo::Variable {
+                                         declaration: binding.clone(),
+                                         info: TypeInfo(type_),
+                                     })
                         .map_err(|mut err| {
                                      err.span = binding.span;
                                      err
@@ -68,16 +76,13 @@ impl TypeCheck for Expr {
                 let declared_type = var_info.get_type();
 
                 if declared_type != assign_type {
-                    return Err(
-                        TypeCheckError::MismatchedTypes(
-                            MismatchedTypesError::from_binding(
-                                var_info.get_declaration().clone(),
-                                declared_type,
-                                assign_type,
-                                *value_span
-                                )
-                            )
-                        );
+                    return Err(MismatchedTypesError::from_binding(var_info
+                                                                      .get_declaration()
+                                                                      .clone(),
+                                                                  declared_type,
+                                                                  assign_type,
+                                                                  *value_span)
+                                       .into());
                 }
 
                 Ok(declared_type)
@@ -104,12 +109,15 @@ impl TypeCheck for Expr {
                 if user_defined {
                     func.unwrap()
                         .return_type(&arg_types)
-                        .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
+                        .ok_or(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)
+                                   .into())
                 } else if let Some(builtin) = env.get_builtin_mut(name) {
-                    builtin.return_type(&arg_types)
-                        .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
+                    builtin
+                        .return_type(&arg_types)
+                        .ok_or(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)
+                                   .into())
                 } else {
-                    Err(TypeCheckError::UndefinedFunction(UndefinedFunctionError::new(name.clone(), *span)))
+                    Err(UndefinedFunctionError::new(name.clone(), *span).into())
                 }
             }
 
@@ -122,20 +130,18 @@ impl TypeCheck for Expr {
                      ref false_branch_span,
                  } => {
                 if cond.type_check(env)? == Void {
-                    return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Bool,
-                                                                                         Void,
-                                                                                         *cond_span)));
+                    return Err(MismatchedTypesError::new(Bool, Void, *cond_span).into());
                 }
 
                 let true_branch_type = true_branch.type_check(env)?;
                 let false_branch_type = false_branch.type_check(env)?;
 
                 if true_branch_type != false_branch_type {
-                    return Err(TypeCheckError::IncompatibleArmTypes(IncompatibleArmTypesError::new(
-                           true_branch_type,
-                           false_branch_type,
-                           *true_branch_span,
-                           *false_branch_span)));
+                    return Err(IncompatibleArmTypesError::new(true_branch_type,
+                                                              false_branch_type,
+                                                              *true_branch_span,
+                                                              *false_branch_span)
+                                       .into());
                 }
 
                 Ok(true_branch_type)
@@ -147,9 +153,7 @@ impl TypeCheck for Expr {
                      ref cond_span,
                  } => {
                 if cond.type_check(env)? == Void {
-                    return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Bool,
-                                                                                         Void,
-                                                                                         *cond_span)));
+                    return Err(MismatchedTypesError::new(Bool, Void, *cond_span).into());
                 }
 
                 expr.type_check(env)?;
@@ -169,21 +173,20 @@ impl TypeCheck for Expr {
                 let goal_type = goal.type_check(env)?;
 
                 if binding_type != Integer {
-                    return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Integer,
-                                                                                         binding_type,
-                                                                                         binding.value_span)));
+                    return Err(MismatchedTypesError::new(Integer,
+                                                         binding_type,
+                                                         binding.value_span)
+                                       .into());
                 }
 
                 env.declare_var(binding.name.clone(),
-                             BindingInfo::Variable {
-                                 declaration: (**binding).clone(),
-                                 info: TypeInfo(binding_type),
-                             })?;
+                                 BindingInfo::Variable {
+                                     declaration: (**binding).clone(),
+                                     info: TypeInfo(binding_type),
+                                 })?;
 
                 if goal_type != Integer {
-                    return Err(TypeCheckError::MismatchedTypes(MismatchedTypesError::new(Integer,
-                                                                                         goal_type,
-                                                                                         *goal_span)));
+                    return Err(MismatchedTypesError::new(Integer, goal_type, *goal_span).into());
                 }
 
                 expr.type_check(env)?;
@@ -205,7 +208,7 @@ impl TypeCheck for Expr {
                 env.get_builtin(name)
                     .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
-                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
+                    .ok_or(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span).into())
             }
 
             &mut UnaryOp {
@@ -220,7 +223,7 @@ impl TypeCheck for Expr {
                 env.get_builtin(name)
                     .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
-                    .ok_or(TypeCheckError::NoSuchSignature(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)))
+                    .ok_or(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span).into())
             }
 
             &mut Cast {
@@ -233,7 +236,7 @@ impl TypeCheck for Expr {
                 if src_type.is_convertible_to(dest) {
                     Ok(dest)
                 } else {
-                    Err(TypeCheckError::Conversion(ConversionError::new(src_type, dest, *expr_span)))
+                    Err(ConversionError::new(src_type, dest, *expr_span).into())
                 }
 
             }
@@ -241,8 +244,7 @@ impl TypeCheck for Expr {
             &mut Variable { ref name, ref span } => {
                 env.get_var(name)
                     .map(|var| var.get_type())
-                    .ok_or(TypeCheckError::UnboundedVar(UnboundedVarError::new(name.clone(),
-                                                                               *span)))
+                    .ok_or(UnboundedVarError::new(name.clone(), *span).into())
             }
 
             &mut Value(ref value) => Ok(value.get_type()),
@@ -256,27 +258,25 @@ impl TypeCheck for FunctionDecl {
         env.enter_scope();
 
         for ref arg in self.args.iter() {
-            env.declare_var(arg.name.clone(), BindingInfo::Argument {
-                declaration: (*arg).clone(),
-                info: TypeInfo(arg.type_),
-            })
-            .map_err(|mut err| {
-                err.span = arg.span;
-                err
-            })?;
+            env.declare_var(arg.name.clone(),
+                             BindingInfo::Argument {
+                                 declaration: (*arg).clone(),
+                                 info: TypeInfo(arg.type_),
+                             })
+                .map_err(|mut err| {
+                             err.span = arg.span;
+                             err
+                         })?;
         }
 
         let final_type = self.body.type_check(env)?;
 
         if final_type != self.return_type {
-            return Err(TypeCheckError::MismatchedTypes(
-                            MismatchedTypesError::from_binding(
-                                Declaration::Function(self.clone()),
-                                self.return_type,
-                                final_type,
-                                self.body_span
-                                )
-                            ));
+            return Err(MismatchedTypesError::from_binding(Declaration::Function(self.clone()),
+                                                          self.return_type,
+                                                          final_type,
+                                                          self.body_span)
+                               .into());
         }
 
         env.leave_scope();

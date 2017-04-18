@@ -317,6 +317,7 @@ impl Error for UndefinedFunctionError {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeCheckError {
     MismatchedTypes(MismatchedTypesError),
+    VoidVarDeclaration(VoidVarDeclartionError),
     Conversion(ConversionError),
     IncompatibleArmTypes(IncompatibleArmTypesError),
     NoSuchSignature(NoSuchSignatureError),
@@ -331,6 +332,7 @@ impl Hint for TypeCheckError {
 
         match *self {
             MismatchedTypes(ref err) => err.hints(),
+            VoidVarDeclaration(ref err) => err.hints(),
             Conversion(ref err) => err.hints(),
             IncompatibleArmTypes(ref err) => err.hints(),
             NoSuchSignature(ref err) => err.hints(),
@@ -347,6 +349,7 @@ impl fmt::Display for TypeCheckError {
 
         match *self {
             MismatchedTypes(ref err) => write!(f, "{}", err),
+            VoidVarDeclaration(ref err) => write!(f, "{}", err),
             Conversion(ref err) => write!(f, "{}", err),
             IncompatibleArmTypes(ref err) => write!(f, "{}", err),
             NoSuchSignature(ref err) => write!(f, "{}", err),
@@ -363,6 +366,7 @@ impl Error for TypeCheckError {
 
         match *self {
             MismatchedTypes(ref err) => err.description(),
+            VoidVarDeclaration(ref err) => err.description(),
             Conversion(ref err) => err.description(),
             IncompatibleArmTypes(ref err) => err.description(),
             NoSuchSignature(ref err) => err.description(),
@@ -377,6 +381,7 @@ impl Error for TypeCheckError {
 
         match *self {
             MismatchedTypes(ref err) => Some(err),
+            VoidVarDeclaration(ref err) => Some(err),
             Conversion(ref err) => Some(err),
             IncompatibleArmTypes(ref err) => Some(err),
             NoSuchSignature(ref err) => Some(err),
@@ -390,6 +395,12 @@ impl Error for TypeCheckError {
 impl From<MismatchedTypesError> for TypeCheckError {
     fn from(err: MismatchedTypesError) -> Self {
         TypeCheckError::MismatchedTypes(err)
+    }
+}
+
+impl From<VoidVarDeclartionError> for TypeCheckError {
+    fn from(err: VoidVarDeclartionError) -> Self {
+        TypeCheckError::VoidVarDeclaration(err)
     }
 }
 
@@ -496,6 +507,44 @@ impl fmt::Display for MismatchedTypesError {
 impl Error for MismatchedTypesError {
     fn description(&self) -> &str {
         "mismatched types"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VoidVarDeclartionError {
+    pub name: String,
+    pub value_span: Span,
+}
+
+impl VoidVarDeclartionError {
+    pub fn new(name: String, value_span: Span) -> Self {
+        VoidVarDeclartionError { name, value_span }
+    }
+}
+
+impl Hint for VoidVarDeclartionError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+            type_: HinterType::Error,
+            span: self.value_span,
+            message: "Got a `Void` here".to_string(),
+        }]
+    }
+}
+
+impl fmt::Display for VoidVarDeclartionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "variable `{}` declared as `Void`", self.name)
+    }
+}
+
+impl Error for VoidVarDeclartionError {
+    fn description(&self) -> &str {
+        "void variable"
     }
 
     fn cause(&self) -> Option<&Error> {
