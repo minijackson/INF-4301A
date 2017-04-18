@@ -25,12 +25,12 @@ fn main() {
     if argc == 1 {
         repl::start();
     } else if argc == 2 {
-        evaluate_file(args().nth(1).unwrap());
+        evaluate_file(&args().nth(1).unwrap());
     }
 }
 
-fn evaluate_file(filename: String) {
-    let mut file = File::open(filename.clone())
+fn evaluate_file(filename: &str) {
+    let mut file = File::open(filename)
         .expect(format!("Could not open file {}", filename).as_str());
     let mut content = String::new();
 
@@ -39,11 +39,11 @@ fn evaluate_file(filename: String) {
     match parse_expressions(content.as_str()) {
         Ok(exprs) => {
             if let Err(err) = do_the_thing(exprs, &mut Environment::new()) {
-                print_error(&filename, &content, err);
+                print_error(filename, &content, &err);
             }
         }
         Err(err) => {
-            print_error(&filename, &content, err);
+            print_error(filename, &content, &err);
         }
     }
 }
@@ -56,7 +56,7 @@ fn do_the_thing(mut exprs: ast::Exprs, mut bindings: &mut Environment<ValueInfo>
     Ok(())
 }
 
-fn parse_expressions<'a>(partial_input: &'a str) -> Result<ast::Exprs, ParseError<'a>> {
+fn parse_expressions(partial_input: &str) -> Result<ast::Exprs, ParseError> {
     match parser::parse_Expressions(partial_input) {
         Ok(exprs) => Ok(exprs),
         Err(err) => Err(From::from(err.clone())),

@@ -279,7 +279,7 @@ Value: Box<Expr> = {
         // Remove quotes
         val.remove(0);
         val.pop();
-        let val = type_sys::unescape_str(val);
+        let val = type_sys::unescape_str(&val);
         Box::new(Expr::Value(type_sys::Value::Str(val)))
     },
     "true"  => Box::new(Expr::Value(type_sys::Value::Bool(true))),

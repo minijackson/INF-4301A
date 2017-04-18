@@ -60,10 +60,7 @@ pub enum Expr {
         expr_span: Span,
         dest: type_sys::Type,
     },
-    Variable {
-        name: String,
-        span: Span,
-    },
+    Variable { name: String, span: Span },
     Value(type_sys::Value),
 }
 
@@ -88,18 +85,18 @@ impl fmt::Display for BinaryOpCode {
 
         write!(f,
                "{}",
-               match self {
-                   &Add => "+",
-                   &Sub => "-",
-                   &Mul => "*",
-                   &Div => "/",
+               match *self {
+                   Add => "+",
+                   Sub => "-",
+                   Mul => "*",
+                   Div => "/",
 
-                   &Lt => "<",
-                   &Le => "<=",
-                   &Gt => ">",
-                   &Ge => ">=",
-                   &Eq => "=",
-                   &Ne => "<>",
+                   Lt => "<",
+                   Le => "<=",
+                   Gt => ">",
+                   Ge => ">=",
+                   Eq => "=",
+                   Ne => "<>",
                })
     }
 }
@@ -116,9 +113,9 @@ impl fmt::Display for UnaryOpCode {
 
         write!(f,
                "{}",
-               match self {
-                   &Plus => "+",
-                   &Minus => "-",
+               match *self {
+                   Plus => "+",
+                   Minus => "-",
                })
     }
 }
@@ -135,8 +132,8 @@ impl Declaration {
         use self::Declaration::*;
 
         match *self {
-            Variable(VariableDecl { ref name, .. }) => name,
-            Function(FunctionDecl { ref name, .. }) => name,
+            Variable(VariableDecl { ref name, .. }) |
+            Function(FunctionDecl { ref name, .. }) |
             Argument(ArgumentDecl { ref name, .. }) => name,
         }
     }
@@ -145,8 +142,8 @@ impl Declaration {
         use self::Declaration::*;
 
         match *self {
-            Variable(VariableDecl { span, .. }) => span,
-            Function(FunctionDecl { signature_span, .. }) => signature_span,
+            Variable(VariableDecl { span, .. }) |
+            Function(FunctionDecl { signature_span: span, .. }) |
             Argument(ArgumentDecl { span, .. }) => span,
         }
     }
@@ -171,10 +168,11 @@ pub struct FunctionDecl {
 }
 
 impl FunctionDecl {
-    pub fn return_type(&self, arg_types: &Vec<type_sys::Type>) -> Option<type_sys::Type> {
-        if arg_types.iter()
-            .zip(&self.args)
-            .all(|(&type_got, &ArgumentDecl { type_, .. })| type_got == type_) {
+    pub fn return_type(&self, arg_types: &[type_sys::Type]) -> Option<type_sys::Type> {
+        if arg_types
+               .iter()
+               .zip(&self.args)
+               .all(|(&type_got, &ArgumentDecl { type_, .. })| type_got == type_) {
             Some(self.return_type)
         } else {
             None

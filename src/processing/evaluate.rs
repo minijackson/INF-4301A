@@ -9,7 +9,7 @@ pub trait Evaluate {
 impl Evaluate for Exprs {
     fn evaluate(&self, env: &mut Environment<ValueInfo>) -> Value {
         let mut value = Value::Void;
-        for expr in self.exprs.iter() {
+        for expr in &self.exprs {
             value = expr.evaluate(env);
         }
         value
@@ -21,10 +21,10 @@ impl Evaluate for Expr {
         use ast::Expr::*;
         use type_sys;
 
-        match self {
-            &Grouping(ref exprs) => exprs.evaluate(env),
+        match *self {
+            Grouping(ref exprs) => exprs.evaluate(env),
 
-            &Let(ref bindings, ref function_decls, ref exprs) => {
+            Let(ref bindings, ref function_decls, ref exprs) => {
                 env.enter_scope();
 
                 for binding in bindings.iter() {
@@ -47,7 +47,7 @@ impl Evaluate for Expr {
                 rv
             }
 
-            &Assign {
+            Assign {
                 ref name,
                 ref value,
                 ..
@@ -57,7 +57,7 @@ impl Evaluate for Expr {
                 value
             }
 
-            &Function {
+            Function {
                 ref name,
                 ref args,
                 ..
@@ -67,7 +67,7 @@ impl Evaluate for Expr {
                 let mut user_defined = false;
                 let mut user_func = None;
 
-                if let Some(func) = env.get_func(&name) {
+                if let Some(func) = env.get_func(name) {
                     user_defined = true;
 
                     user_func = Some(func.clone());
@@ -79,7 +79,7 @@ impl Evaluate for Expr {
                     env.enter_scope();
 
                     for (ind, value) in args.into_iter().enumerate() {
-                        let ref current_arg = func.args[ind];
+                        let current_arg = &func.args[ind];
 
                         env.declare_var(current_arg.name.clone(), BindingInfo::Argument {
                             declaration: current_arg.clone(),
@@ -93,11 +93,11 @@ impl Evaluate for Expr {
                     env.leave_scope();
                     rv
                 } else {
-                    env.call_builtin(&name, args)
+                    env.call_builtin(name, &args)
                 }
             }
 
-            &If {
+            If {
                 ref cond,
                 ref true_branch,
                 ref false_branch,
@@ -110,7 +110,7 @@ impl Evaluate for Expr {
                 }
             }
 
-            &While {
+            While {
                 ref cond,
                 ref expr,
                 ..
@@ -121,7 +121,7 @@ impl Evaluate for Expr {
                 type_sys::Value::Void
             }
 
-            &For {
+            For {
                  ref binding,
                  ref goal,
                  ref expr,
@@ -142,7 +142,7 @@ impl Evaluate for Expr {
                     (type_sys::Value::Integer(mut val), type_sys::Value::Integer(upper)) => {
                         while val < upper {
                             expr.evaluate(env);
-                            val = val + 1;
+                            val += 1;
                             env.assign(&binding.name, type_sys::Value::Integer(val));
                         }
                     }
@@ -155,26 +155,26 @@ impl Evaluate for Expr {
                 type_sys::Value::Void
             }
 
-            &BinaryOp {
+            BinaryOp {
                 ref lhs,
                 ref rhs,
                 ref op,
                 ..
             } => {
                 let args = vec![lhs.evaluate(env), rhs.evaluate(env)];
-                env.call_builtin(&op.to_string(), args)
+                env.call_builtin(&op.to_string(), &args)
             }
 
-            &UnaryOp {
+            UnaryOp {
                 ref expr,
                 ref op,
                 ..
             } => {
                 let args = vec![expr.evaluate(env)];
-                env.call_builtin(&format!("un{}", op.to_string()), args)
+                env.call_builtin(&format!("un{}", op.to_string()), &args)
             }
 
-            &Cast {
+            Cast {
                 ref expr,
                 dest,
                 ..
@@ -182,7 +182,7 @@ impl Evaluate for Expr {
                 expr.evaluate(env).into(dest)
             }
 
-            &Variable {
+            Variable {
                 ref name,
                 ..
             } => {
@@ -192,7 +192,7 @@ impl Evaluate for Expr {
                     .clone()
             }
 
-            &Value(ref value) => value.clone(),
+            Value(ref value) => value.clone(),
 
         }
     }

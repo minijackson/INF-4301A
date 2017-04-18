@@ -10,7 +10,7 @@ use std::fmt;
 use std::error::Error;
 use std::io::{stderr, Write};
 
-pub fn print_error<T>(filename: &str, input: &str, err: T)
+pub fn print_error<T>(filename: &str, input: &str, err: &T)
     where T: Error + Hint
 {
     let mut t = term::stderr().unwrap();
@@ -27,12 +27,12 @@ pub fn print_error<T>(filename: &str, input: &str, err: T)
 
     t.reset().unwrap();
 
-    for hint in err.hints().into_iter() {
+    for hint in &err.hints() {
         print_hints(input, hint);
     }
 }
 
-pub fn print_hints(input: &str, hint: Hinter) {
+pub fn print_hints(input: &str, hint: &Hinter) {
     let mut t = term::stderr().unwrap();
 
     let Span(mut start, end) = hint.span;
@@ -62,7 +62,7 @@ pub fn print_hints(input: &str, hint: Hinter) {
     t.reset().unwrap();
 }
 
-fn extract_line<'a>(input: &'a str, pos: usize) -> (usize, &'a str) {
+fn extract_line(input: &str, pos: usize) -> (usize, &str) {
     let mut start = pos;
     let mut end = pos;
 
@@ -529,10 +529,10 @@ impl VoidVarDeclartionError {
 impl Hint for VoidVarDeclartionError {
     fn hints(&self) -> Vec<Hinter> {
         vec![Hinter {
-            type_: HinterType::Error,
-            span: self.value_span,
-            message: "Got a `Void` here".to_string(),
-        }]
+                 type_: HinterType::Error,
+                 span: self.value_span,
+                 message: "Got a `Void` here".to_string(),
+             }]
     }
 }
 
@@ -629,15 +629,9 @@ impl<'a> Hint for ParseError<'a> {
                  type_: HinterType::Error,
                  span: match *self {
                      InvalidToken { location } => Span(location, location + 1),
-                     UnrecognizedToken {
-                         token: Some((start, _, end)),
-                         expected: _,
-                     } => Span(start, end),
-                     UnrecognizedToken {
-                         token: None,
-                         expected: _,
-                     } => return vec![],
+                     UnrecognizedToken { token: Some((start, _, end)), .. } |
                      ExtraToken { token: (start, _, end) } => Span(start, end),
+                     UnrecognizedToken { token: None, .. } => return vec![],
                      User { ref error } => return error.hints(),
                  },
                  message: "Encountered here".to_string(),
@@ -665,21 +659,21 @@ impl<'a> fmt::Display for ParseError<'a> {
         use self::ParseError::*;
 
         match *self {
-            InvalidToken { location: _ } => write!(f, "Invalid token"),
+            InvalidToken { .. } => write!(f, "Invalid token"),
             UnrecognizedToken {
                 ref token,
                 ref expected,
             } => {
                 match *token {
                     None => write!(f, "Unexpected EOF")?,
-                    Some((_, (_, ref token), _)) => write!(f, "Unexpected \"{}\"", token)?,
+                    Some((_, (_, token), _)) => write!(f, "Unexpected \"{}\"", token)?,
                 }
                 if !expected.is_empty() {
                     write!(f, ", expected one of: {}", expected.iter().join(", "))?;
                 }
                 Ok(())
             }
-            ExtraToken { token: (_, (_, ref token), _) } => write!(f, "Extra token `{}`", token),
+            ExtraToken { token: (_, (_, token), _) } => write!(f, "Extra token `{}`", token),
             User { ref error } => write!(f, "{}", error),
         }
     }
@@ -723,9 +717,11 @@ impl fmt::Display for UserParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::UserParseError::*;
 
-        write!(f, "{}", match *self {
-            IntegerOverflow { .. } => "Integer overflow",
-        })
+        write!(f,
+               "{}",
+               match *self {
+                   IntegerOverflow { .. } => "Integer overflow",
+               })
     }
 }
 

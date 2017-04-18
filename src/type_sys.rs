@@ -24,41 +24,22 @@ impl Type {
                     _ => false,
                 }
             }
-            Integer => {
+            Integer | Float => {
                 match dest {
-                    Void => true,
-                    Integer => true,
-                    Float => true,
-                    Bool => true,
-                    Str => true,
-                }
-            }
-            Float => {
-                match dest {
-                    Void => true,
-                    Integer => true,
-                    Float => true,
-                    Bool => true,
-                    Str => true,
+                    Void | Integer | Float | Bool | Str => true,
                 }
             }
             Bool => {
                 match dest {
-                    Void => true,
-                    Integer => false,
-                    Float => false,
-                    Bool => true,
-                    Str => true,
+                    Void | Bool | Str => true,
+                    Integer | Float => false,
                 }
             }
             Str => {
                 match dest {
-                    Void => true,
+                    Void | Str => true,
                     // TODO
-                    Integer => false,
-                    Float => false,
-                    Bool => false,
-                    Str => true,
+                    Integer | Float | Bool => false,
                 }
             }
         }
@@ -79,12 +60,8 @@ impl Value {
         use self::Value::*;
 
         match *self {
-            Integer(0) => Ok(false),
-            Integer(_) => Ok(true),
-            Float(0f64) => Ok(false),
-            Float(_) => Ok(true),
-            Bool(false) => Ok(false),
-            Bool(true) => Ok(true),
+            Integer(0) | Float(0f64) | Bool(false) => Ok(false),
+            Integer(_) | Float(_) | Bool(true) => Ok(true),
             // TODO
             Str(_) => Err(ConversionError::new(Type::Str, Type::Bool, Span(0, 0))),
             Void => Err(ConversionError::new(Type::Void, Type::Bool, Span(0, 0))),
@@ -118,7 +95,7 @@ impl Value {
                     Type::Void => Void,
                     Type::Integer => Integer(val),
                     Type::Float => Float(val as f64),
-                    Type::Bool => Bool(if val == 1 { true } else { false }),
+                    Type::Bool => Bool(val == 1),
                     Type::Str => Str(val.to_string()),
                 }
             }
@@ -127,7 +104,7 @@ impl Value {
                     Type::Void => Void,
                     Type::Integer => Integer(val as i64),
                     Type::Float => Float(val),
-                    Type::Bool => Bool(if val == 1f64 { true } else { false }),
+                    Type::Bool => Bool(val == 1f64),
                     Type::Str => Str(val.to_string()),
                 }
             }
@@ -174,7 +151,7 @@ impl fmt::Display for Value {
     }
 }
 
-pub fn unescape_str(input: String) -> String {
+pub fn unescape_str(input: &str) -> String {
     let mut res = String::with_capacity(input.len());
 
     let mut chars = input.chars();

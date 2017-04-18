@@ -9,7 +9,7 @@ pub mod type_sys;
 
 use processing::{Evaluate,Print,TypeCheck};
 use env::{Environment,ValueInfo};
-use error::{print_error, ParseError, TypeCheckError};
+use error::{ParseError, TypeCheckError};
 
 extern crate itertools;
 extern crate lalrpop_util;
@@ -24,7 +24,7 @@ pub fn do_the_thing(mut exprs: ast::Exprs, mut bindings: &mut Environment<ValueI
     Ok(())
 }
 
-pub fn parse_expressions<'a>(partial_input: &'a str) -> Result<ast::Exprs, ParseError<'a>> {
+pub fn parse_expressions(partial_input: &str) -> Result<ast::Exprs, ParseError> {
     match parser::parse_Expressions(partial_input) {
         Ok(exprs) => Ok(exprs),
         Err(err) => Err(From::from(err.clone())),

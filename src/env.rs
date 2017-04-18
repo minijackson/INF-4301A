@@ -1,12 +1,13 @@
 use ast::{Declaration, FunctionDecl, ArgumentDecl, VariableDecl, Span};
 use builtins;
-use error::{AlreadyDeclaredError};
+use error::AlreadyDeclaredError;
 use type_sys::{Value, Type};
 
 use std::collections::{LinkedList, HashMap};
 use std::collections::hash_map::Entry;
 
 pub struct Environment<T> {
+    // TODO: change that abomination of a LinkedList
     scopes: LinkedList<Scope<T>>,
     builtins: HashMap<String, BuiltinInfo>,
 }
@@ -28,13 +29,13 @@ impl<T> Scope<T> {
 pub struct BuiltinInfo {
     pub name: String,
     pub signatures: HashMap<Vec<Type>, Type>,
-    pub call: Box<FnMut(Vec<Value>) -> Value + 'static>,
+    pub call: Box<FnMut(&[Value]) -> Value + 'static>,
 }
 
 impl BuiltinInfo {
     pub fn new(name: String,
                signatures: HashMap<Vec<Type>, Type>,
-               call: Box<FnMut(Vec<Value>) -> Value>)
+               call: Box<FnMut(&[Value]) -> Value>)
                -> Self {
         BuiltinInfo {
             name,
@@ -43,30 +44,21 @@ impl BuiltinInfo {
         }
     }
 
-    pub fn is_defined_for(&self, arg_types: &Vec<Type>) -> bool {
+    pub fn is_defined_for(&self, arg_types: &[Type]) -> bool {
         self.signatures.contains_key(arg_types)
     }
 
-    pub fn return_type(&self, arg_types: &Vec<Type>) -> Option<Type> {
-        self.signatures
-            .get(arg_types)
-            .map(|&type_ref| type_ref)
+    pub fn return_type(&self, arg_types: &[Type]) -> Option<Type> {
+        self.signatures.get(arg_types).cloned()
     }
 }
 
 pub enum BindingInfo<T> {
-    Variable {
-        declaration: VariableDecl,
-        info: T,
-    },
-    Argument {
-        declaration: ArgumentDecl,
-        info: T,
-    }
+    Variable { declaration: VariableDecl, info: T },
+    Argument { declaration: ArgumentDecl, info: T },
 }
 
 impl<T> BindingInfo<T> {
-
     pub fn get_declaration(&self) -> Declaration {
         use self::BindingInfo::*;
 
@@ -75,29 +67,25 @@ impl<T> BindingInfo<T> {
             Argument { ref declaration, .. } => Declaration::Argument(declaration.clone()),
         }
     }
-
 }
 
 impl BindingInfo<TypeInfo> {
-
     pub fn get_type(&self) -> Type {
         use self::BindingInfo::*;
 
         match *self {
-            Variable { ref info, .. } => info.0,
+            Variable { ref info, .. } |
             Argument { ref info, .. } => info.0,
         }
     }
-
 }
 
 impl BindingInfo<ValueInfo> {
-
     pub fn get_value(&self) -> &Value {
         use self::BindingInfo::*;
 
         match *self {
-            Variable { ref info, .. } => &info.0,
+            Variable { ref info, .. } |
             Argument { ref info, .. } => &info.0,
         }
     }
@@ -106,15 +94,12 @@ impl BindingInfo<ValueInfo> {
         use self::BindingInfo::*;
 
         match *self {
-            Variable { ref mut info, .. } => {
-                info.0 = value;
-            }
+            Variable { ref mut info, .. } |
             Argument { ref mut info, .. } => {
                 info.0 = value;
             }
         }
     }
-
 }
 
 pub struct TypeInfo(pub Type);
@@ -197,14 +182,19 @@ impl<T> Environment<T> {
             .expect("Tried to leave a scope when not in a scope");
     }
 
-    pub fn declare_var(&mut self, name: String, info: BindingInfo<T>) -> Result<(), AlreadyDeclaredError> {
-        let ref mut scope = self.scopes
-            .front_mut()
-            .expect("Trying to declare a variable out of scope")
-            .variables;
+    pub fn declare_var(&mut self,
+                       name: String,
+                       info: BindingInfo<T>)
+                       -> Result<(), AlreadyDeclaredError> {
+        let scope = &mut self.scopes
+                             .front_mut()
+                             .expect("Trying to declare a variable out of scope")
+                             .variables;
 
         match scope.entry(name.clone()) {
-            Entry::Occupied(entry) => Err(AlreadyDeclaredError::new(name, entry.get().get_declaration(), Span(0, 0))),
+            Entry::Occupied(entry) => {
+                Err(AlreadyDeclaredError::new(name, entry.get().get_declaration(), Span(0, 0)))
+            }
 
             Entry::Vacant(vacant_entry) => {
                 vacant_entry.insert(info);
@@ -213,14 +203,14 @@ impl<T> Environment<T> {
         }
     }
 
-    pub fn get_var(&self, name: &String) -> Option<&BindingInfo<T>> {
+    pub fn get_var(&self, name: &str) -> Option<&BindingInfo<T>> {
         self.scopes
             .iter()
             .find(|scope| scope.variables.contains_key(name))
-            .map(|scope| scope.variables.get(name).unwrap())
+            .map(|scope| &scope.variables[name])
     }
 
-    pub fn get_var_mut(&mut self, name: &String) -> Option<&mut BindingInfo<T>> {
+    pub fn get_var_mut(&mut self, name: &str) -> Option<&mut BindingInfo<T>> {
         self.scopes
             .iter_mut()
             .find(|scope| scope.variables.contains_key(name))
@@ -228,13 +218,17 @@ impl<T> Environment<T> {
     }
 
     pub fn declare_func(&mut self, decl: FunctionDecl) -> Result<(), AlreadyDeclaredError> {
-        let ref mut scope = self.scopes
-            .front_mut()
-            .expect("Trying to declare a variable out of scope")
-            .functions;
+        let scope = &mut self.scopes
+                             .front_mut()
+                             .expect("Trying to declare a variable out of scope")
+                             .functions;
 
         match scope.entry(decl.name.clone()) {
-            Entry::Occupied(entry) => Err(AlreadyDeclaredError::new(decl.name, Declaration::Function(entry.get().clone()), decl.signature_span)),
+            Entry::Occupied(entry) => {
+                Err(AlreadyDeclaredError::new(decl.name,
+                                              Declaration::Function(entry.get().clone()),
+                                              decl.signature_span))
+            }
 
             Entry::Vacant(vacant_entry) => {
                 vacant_entry.insert(decl);
@@ -243,35 +237,31 @@ impl<T> Environment<T> {
         }
     }
 
-    pub fn get_func(&self, name: &String) -> Option<&FunctionDecl> {
+    pub fn get_func(&self, name: &str) -> Option<&FunctionDecl> {
         self.scopes
             .iter()
             .find(|scope| scope.functions.contains_key(name))
-            .map(|scope| scope.functions.get(name).unwrap())
+            .map(|scope| &scope.functions[name])
     }
 
-    pub fn get_builtin(&self, name: &String) -> Option<&BuiltinInfo> {
-        self.builtins
-            .get(name)
+    pub fn get_builtin(&self, name: &str) -> Option<&BuiltinInfo> {
+        self.builtins.get(name)
     }
 
-    pub fn get_builtin_mut(&mut self,
-                           name: &String)
-                           -> Option<&mut BuiltinInfo> {
-        self.builtins
-            .get_mut(name)
+    pub fn get_builtin_mut(&mut self, name: &str) -> Option<&mut BuiltinInfo> {
+        self.builtins.get_mut(name)
     }
 
-    pub fn call_builtin(&mut self, name: &String, args: Vec<Value>) -> Value {
+    pub fn call_builtin(&mut self, name: &str, args: &[Value]) -> Value {
         (self.builtins
              .get_mut(name)
              .expect("No such function")
-             .call)(args)
+             .call)(&args)
     }
 }
 
 impl Environment<ValueInfo> {
-    pub fn assign(&mut self, name: &String, value: Value) {
+    pub fn assign(&mut self, name: &str, value: Value) {
         self.get_var_mut(name)
             .expect(format!("Could not find variable {} in current scope", name).as_str())
             .set_value(value);

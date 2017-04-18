@@ -13,7 +13,7 @@ pub trait TypeCheck {
 impl TypeCheck for Exprs {
     fn type_check(&mut self, env: &mut Environment<TypeInfo>) -> Result<Type, TypeCheckError> {
         let mut final_type = Void;
-        for expr in self.exprs.iter_mut() {
+        for expr in &mut self.exprs {
             final_type = expr.type_check(env)?;
         }
         Ok(final_type)
@@ -24,10 +24,10 @@ impl TypeCheck for Expr {
     fn type_check(&mut self, env: &mut Environment<TypeInfo>) -> Result<Type, TypeCheckError> {
         use ast::Expr::*;
 
-        match self {
-            &mut Grouping(ref mut exprs) => exprs.type_check(env),
+        match *self {
+            Grouping(ref mut exprs) => exprs.type_check(env),
 
-            &mut Let(ref mut bindings, ref mut function_decls, ref mut exprs) => {
+            Let(ref mut bindings, ref mut function_decls, ref mut exprs) => {
                 env.enter_scope();
 
                 for binding in bindings.iter_mut() {
@@ -63,7 +63,7 @@ impl TypeCheck for Expr {
                 Ok(final_type)
             }
 
-            &mut Assign {
+            Assign {
                      ref name,
                      ref name_span,
                      ref mut value,
@@ -72,7 +72,7 @@ impl TypeCheck for Expr {
                 let assign_type = value.type_check(env)?;
 
                 let var_info = env.get_var(name)
-                    .ok_or(UnboundedVarError::new(name.clone(), *name_span))?;
+                    .ok_or_else(|| UnboundedVarError::new(name.clone(), *name_span))?;
                 let declared_type = var_info.get_type();
 
                 if declared_type != assign_type {
@@ -88,7 +88,7 @@ impl TypeCheck for Expr {
                 Ok(declared_type)
             }
 
-            &mut Function {
+            Function {
                      ref name,
                      ref mut args,
                      ref span,
@@ -96,7 +96,7 @@ impl TypeCheck for Expr {
                 let arg_types = args.iter_mut()
                     //.map(|&mut (ref mut expr, ref span)| expr.type_check(env).map(|arg_type| (arg_type, span)))
                     .map(|&mut (ref mut expr, _)| expr.type_check(env))
-                    .collect::<Result<_, _>>()?;
+                    .collect::<Result<Vec<_>, _>>()?;
 
                 let mut user_defined = false;
                 let mut func = None;
@@ -109,19 +109,19 @@ impl TypeCheck for Expr {
                 if user_defined {
                     func.unwrap()
                         .return_type(&arg_types)
-                        .ok_or(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)
+                        .ok_or_else(|| NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)
                                    .into())
                 } else if let Some(builtin) = env.get_builtin_mut(name) {
                     builtin
                         .return_type(&arg_types)
-                        .ok_or(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)
+                        .ok_or_else(|| NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span)
                                    .into())
                 } else {
                     Err(UndefinedFunctionError::new(name.clone(), *span).into())
                 }
             }
 
-            &mut If {
+            If {
                      ref mut cond,
                      ref cond_span,
                      ref mut true_branch,
@@ -147,7 +147,7 @@ impl TypeCheck for Expr {
                 Ok(true_branch_type)
             }
 
-            &mut While {
+            While {
                      ref mut cond,
                      ref mut expr,
                      ref cond_span,
@@ -161,7 +161,7 @@ impl TypeCheck for Expr {
                 Ok(Void)
             }
 
-            &mut For {
+            For {
                      ref mut binding,
                      ref mut goal,
                      ref mut expr,
@@ -195,7 +195,7 @@ impl TypeCheck for Expr {
                 Ok(Void)
             }
 
-            &mut BinaryOp {
+            BinaryOp {
                      ref mut lhs,
                      ref mut rhs,
                      ref op,
@@ -206,12 +206,12 @@ impl TypeCheck for Expr {
                 let name = &op.to_string();
 
                 env.get_builtin(name)
-                    .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
+                    .ok_or_else(|| UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
-                    .ok_or(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span).into())
+                    .ok_or_else(|| NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span).into())
             }
 
-            &mut UnaryOp {
+            UnaryOp {
                      ref mut expr,
                      ref op,
                      ref span,
@@ -221,12 +221,12 @@ impl TypeCheck for Expr {
                 let name = &format!("un{}", op.to_string());
 
                 env.get_builtin(name)
-                    .ok_or(UndefinedFunctionError::new(name.clone(), *span))?
+                    .ok_or_else(|| UndefinedFunctionError::new(name.clone(), *span))?
                     .return_type(&arg_types)
-                    .ok_or(NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span).into())
+                    .ok_or_else(|| NoSuchSignatureError::new(name.clone(), arg_types.clone(), *span).into())
             }
 
-            &mut Cast {
+            Cast {
                      ref mut expr,
                      ref expr_span,
                      dest,
@@ -241,13 +241,13 @@ impl TypeCheck for Expr {
 
             }
 
-            &mut Variable { ref name, ref span } => {
+            Variable { ref name, ref span } => {
                 env.get_var(name)
                     .map(|var| var.get_type())
-                    .ok_or(UnboundedVarError::new(name.clone(), *span).into())
+                    .ok_or_else(|| UnboundedVarError::new(name.clone(), *span).into())
             }
 
-            &mut Value(ref value) => Ok(value.get_type()),
+            Value(ref value) => Ok(value.get_type()),
 
         }
     }
@@ -257,10 +257,10 @@ impl TypeCheck for FunctionDecl {
     fn type_check(&mut self, env: &mut Environment<TypeInfo>) -> Result<Type, TypeCheckError> {
         env.enter_scope();
 
-        for ref arg in self.args.iter() {
+        for arg in &self.args {
             env.declare_var(arg.name.clone(),
                              BindingInfo::Argument {
-                                 declaration: (*arg).clone(),
+                                 declaration: arg.clone(),
                                  info: TypeInfo(arg.type_),
                              })
                 .map_err(|mut err| {
