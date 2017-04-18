@@ -525,12 +525,12 @@ impl IncompatibleArmTypesError {
 impl Hint for IncompatibleArmTypesError {
     fn hints(&self) -> Vec<Hinter> {
         vec![Hinter {
-                 type_: HinterType::Error,
+                 type_: HinterType::Warning,
                  span: self.false_branch_span,
                  message: format!("Resolved as a `{:?}`", self.got),
              },
              Hinter {
-                 type_: HinterType::Info,
+                 type_: HinterType::Warning,
                  span: self.true_branch_span,
                  message: format!("True branch resolved as `{:?}`", self.expected),
              }]
