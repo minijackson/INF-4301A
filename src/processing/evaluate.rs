@@ -176,7 +176,7 @@ impl Evaluate for Expr {
 
             Cast {
                 ref expr,
-                dest,
+                ref dest,
                 ..
             } => {
                 expr.evaluate(env).into(dest)
@@ -190,6 +190,17 @@ impl Evaluate for Expr {
                     .expect(format!("Unbounded variable: {}", name).as_str())
                     .get_value()
                     .clone()
+            }
+
+            Array {
+                ref values,
+                ref declared_type,
+                ..
+            } => {
+                type_sys::Value::Array {
+                    element_type: declared_type.clone().unwrap(),
+                    values: values.iter().map(|&(ref expr, _)| expr.evaluate(env)).collect(),
+                }
             }
 
             Value(ref value) => value.clone(),

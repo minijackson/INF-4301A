@@ -45,10 +45,10 @@ impl Print for Expr {
             }
 
             Assign {
-                 ref name,
-                 ref value,
-                 ..
-             } => format!("{} := {}", name, value.pretty_print(indent)),
+                ref name,
+                ref value,
+                ..
+            } => format!("{} := {}", name, value.pretty_print(indent)),
 
             Function { ref name, ref args, .. } => {
                 format!("{}({})",
@@ -59,11 +59,11 @@ impl Print for Expr {
             }
 
             If {
-                 ref cond,
-                 ref true_branch,
-                 ref false_branch,
-                 ..
-             } => {
+                ref cond,
+                ref true_branch,
+                ref false_branch,
+                ..
+            } => {
                 format!("(if {} then {} else {})",
                         cond.pretty_print(indent),
                         true_branch.pretty_print(indent),
@@ -77,11 +77,11 @@ impl Print for Expr {
             }
 
             For {
-                 ref binding,
-                 ref goal,
-                 ref expr,
-                 ..
-             } => {
+                ref binding,
+                ref goal,
+                ref expr,
+                ..
+            } => {
                 format!("(for {} to {} do {})",
                         binding.pretty_print(indent),
                         goal.pretty_print(indent),
@@ -89,11 +89,11 @@ impl Print for Expr {
             }
 
             BinaryOp {
-                 ref lhs,
-                 ref rhs,
-                 ref op,
-                 ..
-             } => {
+                ref lhs,
+                ref rhs,
+                ref op,
+                ..
+            } => {
                 let op_symbol = match *op {
                     Add => "+",
                     Sub => "-",
@@ -126,6 +126,19 @@ impl Print for Expr {
             }
 
             Variable { ref name, .. } => name.clone(),
+
+            Array {
+                ref values,
+                ref declared_type,
+                ..
+            } => {
+                format!("{:?}[{}]",
+                        declared_type.clone().unwrap(),
+                        values
+                            .iter()
+                            .map(|&(ref value, _)| value.pretty_print(indent))
+                            .join(", "))
+            }
 
             // For strings, use the debug trait to add quotes
             Value(type_sys::Value::Str(ref value)) => format!("{:?}", value),

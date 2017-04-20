@@ -50,8 +50,8 @@ fn evaluate_file(filename: &str) {
 
 fn do_the_thing(mut exprs: ast::Exprs, mut bindings: &mut Environment<ValueInfo>) -> Result<(), TypeCheckError> {
     println!("Result: {:?}", exprs);
-    println!("===== Pretty printing =====\n{}===========================", &exprs.pretty_print(0));
     println!("Final type (type checker): {:?}", &mut exprs.type_check(&mut Environment::new())?);
+    println!("===== Pretty printing =====\n{}===========================", &exprs.pretty_print(0));
     println!("Final value: {:?}", &exprs.evaluate(&mut bindings));
     Ok(())
 }

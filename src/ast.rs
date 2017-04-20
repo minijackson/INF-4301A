@@ -61,6 +61,12 @@ pub enum Expr {
         dest: type_sys::Type,
     },
     Variable { name: String, span: Span },
+    Array {
+        values: Vec<(Box<Expr>, Span)>,
+        declared_type: Option<type_sys::Type>,
+        declared_type_span: Option<Span>,
+        span: Span,
+    },
     Value(type_sys::Value),
 }
 
@@ -168,12 +174,12 @@ pub struct FunctionDecl {
 }
 
 impl FunctionDecl {
-    pub fn return_type(&self, arg_types: &[type_sys::Type]) -> Option<type_sys::Type> {
+    pub fn return_type(&self, arg_types: &[type_sys::Type]) -> Option<&type_sys::Type> {
         if arg_types
                .iter()
                .zip(&self.args)
-               .all(|(&type_got, &ArgumentDecl { type_, .. })| type_got == type_) {
-            Some(self.return_type)
+               .all(|(type_got, &ArgumentDecl { ref type_, .. })| type_got == type_) {
+            Some(&self.return_type)
         } else {
             None
         }

@@ -284,6 +284,21 @@ Value: Box<Expr> = {
     },
     "true"  => Box::new(Expr::Value(type_sys::Value::Bool(true))),
     "false" => Box::new(Expr::Value(type_sys::Value::Bool(false))),
+    <start:@L> <declared_type:(<@L> <Type> <@R>)?> "[" <values:SpannedComma<Expression>> "]" <end:@R>
+        => {
+            let (declared_type, declared_type_span) = if let Some((start, type_, end)) = declared_type {
+                (Some(type_), Some(Span(start, end)))
+            } else {
+                (None, None)
+            };
+
+            Box::new(Expr::Array {
+                values,
+                declared_type,
+                declared_type_span,
+                span: Span(start, end),
+            })
+        },
 };
 
 Type: type_sys::Type = {
@@ -292,7 +307,7 @@ Type: type_sys::Type = {
     "Float" => type_sys::Type::Float,
     "Bool" => type_sys::Type::Bool,
     "Str" => type_sys::Type::Str,
-    // "Array" => Array,
+    "Array" "(" <Type> ")" => type_sys::Type::Array(Box::new(<>)),
 };
 
 Identifier: String = r"[[:alpha:]][[:alnum:]_]*" => <>.to_string();

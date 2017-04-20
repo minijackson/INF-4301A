@@ -1,45 +1,55 @@
 use ast::Span;
 use error::ConversionError;
 
+use itertools::Itertools;
+
 use std::char;
 use std::fmt;
 
-#[derive(Debug,Clone,Copy,PartialEq,Eq,Hash)]
+#[derive(Debug,Clone,PartialEq,Eq,Hash)]
 pub enum Type {
     Void,
     Integer,
     Float,
     Bool,
-    Str, /* Array, */
+    Str,
+    Array(Box<Type>),
 }
 
 impl Type {
-    pub fn is_convertible_to(&self, dest: Type) -> bool {
+    pub fn is_convertible_to(&self, dest: &Type) -> bool {
         use self::Type::*;
 
         match *self {
             Void => {
-                match dest {
+                match *dest {
                     Void => true,
                     _ => false,
                 }
             }
             Integer | Float => {
-                match dest {
+                match *dest {
                     Void | Integer | Float | Bool | Str => true,
+                    Array(_) => false,
                 }
             }
             Bool => {
-                match dest {
+                match *dest {
                     Void | Bool | Str => true,
-                    Integer | Float => false,
+                    Integer | Float | Array(_) => false,
                 }
             }
             Str => {
-                match dest {
+                match *dest {
                     Void | Str => true,
                     // TODO
-                    Integer | Float | Bool => false,
+                    Integer | Float | Bool | Array(_) => false,
+                }
+            }
+            Array(_) => {
+                match *dest {
+                    Void | Array(_) => true,
+                    Integer | Float | Bool | Str => false,
                 }
             }
         }
@@ -52,7 +62,11 @@ pub enum Value {
     Integer(i64),
     Float(f64),
     Bool(bool),
-    Str(String), /* Array, */
+    Str(String),
+    Array {
+        element_type: Type,
+        values: Vec<Value>,
+    },
 }
 
 impl Value {
@@ -62,6 +76,7 @@ impl Value {
         match *self {
             Integer(0) | Float(0f64) | Bool(false) => Ok(false),
             Integer(_) | Float(_) | Bool(true) => Ok(true),
+            Array { ref values, .. } => Ok(values.len() != 0),
             // TODO
             Str(_) => Err(ConversionError::new(Type::Str, Type::Bool, Span(0, 0))),
             Void => Err(ConversionError::new(Type::Void, Type::Bool, Span(0, 0))),
@@ -77,54 +92,78 @@ impl Value {
             Float(_) => Type::Float,
             Bool(_) => Type::Bool,
             Str(_) => Type::Str,
+            Array { ref element_type, .. } => Type::Array(Box::new(element_type.clone())),
         }
     }
 
-    pub fn into(self, dest: Type) -> Self {
+    pub fn into(self, dest: &Type) -> Self {
         use self::Value::*;
 
         match self {
             Void => {
-                match dest {
+                match *dest {
                     Type::Void => Void,
                     _ => panic!("Unnatural conversion at runtime"),
                 }
             }
             Integer(val) => {
-                match dest {
+                match *dest {
                     Type::Void => Void,
                     Type::Integer => Integer(val),
                     Type::Float => Float(val as f64),
-                    Type::Bool => Bool(val == 1),
+                    Type::Bool => Bool(val != 0),
                     Type::Str => Str(val.to_string()),
+                    Type::Array(_) => panic!("Unnatural conversion at runtime"),
                 }
             }
             Float(val) => {
-                match dest {
+                match *dest {
                     Type::Void => Void,
                     Type::Integer => Integer(val as i64),
                     Type::Float => Float(val),
-                    Type::Bool => Bool(val == 1f64),
+                    Type::Bool => Bool(val != 0f64),
                     Type::Str => Str(val.to_string()),
+                    Type::Array(_) => panic!("Unnatural conversion at runtime"),
                 }
             }
             Bool(val) => {
-                match dest {
+                match *dest {
                     Type::Void => Void,
-                    Type::Integer => panic!("Unnatural conversion at runtime"),
-                    Type::Float => panic!("Unnatural conversion at runtime"),
                     Type::Bool => Bool(val),
                     Type::Str => Str(val.to_string()),
+                    Type::Integer | Type::Float | Type::Array(_) => panic!("Unnatural conversion at runtime"),
                 }
             }
             Str(val) => {
-                match dest {
+                match *dest {
                     Type::Void => Value::Void,
-                    // TODO
-                    Type::Integer => panic!("Unnatural conversion at runtime"),
-                    Type::Float => panic!("Unnatural conversion at runtime"),
-                    Type::Bool => panic!("Unnatural conversion at runtime"),
                     Type::Str => Str(val),
+                    // TODO
+                    Type::Integer | Type::Float | Type::Bool | Type::Array(_) => panic!("Unnatural conversion at runtime"),
+                }
+            }
+            Array {
+                element_type,
+                values,
+            } => {
+                match *dest {
+                    Type::Void => Value::Void,
+                    Type::Array(ref new_element_type) if **new_element_type == element_type => {
+                        Value::Array {
+                            element_type,
+                            values,
+                        }
+                    }
+                    Type::Array(ref new_element_type) => {
+                        Value::Array {
+                            element_type: *new_element_type.clone(),
+                            values: values
+                                .into_iter()
+                                .map(|value| value.into(new_element_type))
+                                .collect(),
+                        }
+                    }
+                    Type::Integer | Type::Float | Type::Bool | Type::Str => panic!("Unnatural conversion at runtime"),
                 }
             }
         }
@@ -146,6 +185,7 @@ impl fmt::Display for Value {
             }
             Bool(ref value) => write!(f, "{}", value),
             Str(ref value) => write!(f, "{}", value),
+            Array { ref values, .. } => write!(f, "[{}]", values.iter().join(", ")),
             Void => Err(fmt::Error::default()),
         }
     }
@@ -166,7 +206,8 @@ pub fn unescape_str(input: &str) -> String {
                                  .by_ref()
                                  .take(2)
                                  .fold(0u8,
-                                       |acc, c| acc * 16 + c.to_digit(16).unwrap() as u8) as char
+                                       |acc, c| acc * 16 + c.to_digit(16).unwrap() as u8) as
+                             char
                          }
                          Some('u') => {
                              let val = chars

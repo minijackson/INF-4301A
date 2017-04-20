@@ -129,7 +129,7 @@ impl Hint for ConversionError {
 impl fmt::Display for ConversionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
-               "Unnatural conversion from {:?} to {:?}",
+               "Unnatural conversion from `{:?}` to `{:?}`",
                self.from,
                self.to)
     }
@@ -324,6 +324,8 @@ pub enum TypeCheckError {
     UnboundedVar(UnboundedVarError),
     AlreadyDeclared(AlreadyDeclaredError),
     UndefinedFunction(UndefinedFunctionError),
+    UntypedEmptyArray(UntypedEmptyArrayError),
+    InconsistentArrayTyping(InconsistentArrayTypingError),
 }
 
 impl Hint for TypeCheckError {
@@ -339,6 +341,8 @@ impl Hint for TypeCheckError {
             UnboundedVar(ref err) => err.hints(),
             AlreadyDeclared(ref err) => err.hints(),
             UndefinedFunction(ref err) => err.hints(),
+            UntypedEmptyArray(ref err) => err.hints(),
+            InconsistentArrayTyping(ref err) => err.hints(),
         }
     }
 }
@@ -356,6 +360,8 @@ impl fmt::Display for TypeCheckError {
             UnboundedVar(ref err) => write!(f, "{}", err),
             AlreadyDeclared(ref err) => write!(f, "{}", err),
             UndefinedFunction(ref err) => write!(f, "{}", err),
+            UntypedEmptyArray(ref err) => write!(f, "{}", err),
+            InconsistentArrayTyping(ref err) => write!(f, "{}", err),
         }
     }
 }
@@ -373,6 +379,8 @@ impl Error for TypeCheckError {
             UnboundedVar(ref err) => err.description(),
             AlreadyDeclared(ref err) => err.description(),
             UndefinedFunction(ref err) => err.description(),
+            UntypedEmptyArray(ref err) => err.description(),
+            InconsistentArrayTyping(ref err) => err.description(),
         }
     }
 
@@ -388,6 +396,8 @@ impl Error for TypeCheckError {
             UnboundedVar(ref err) => Some(err),
             AlreadyDeclared(ref err) => Some(err),
             UndefinedFunction(ref err) => Some(err),
+            UntypedEmptyArray(ref err) => Some(err),
+            InconsistentArrayTyping(ref err) => Some(err),
         }
     }
 }
@@ -437,6 +447,18 @@ impl From<AlreadyDeclaredError> for TypeCheckError {
 impl From<UndefinedFunctionError> for TypeCheckError {
     fn from(err: UndefinedFunctionError) -> Self {
         TypeCheckError::UndefinedFunction(err)
+    }
+}
+
+impl From<UntypedEmptyArrayError> for TypeCheckError {
+    fn from(err: UntypedEmptyArrayError) -> Self {
+        TypeCheckError::UntypedEmptyArray(err)
+    }
+}
+
+impl From<InconsistentArrayTypingError> for TypeCheckError {
+    fn from(err: InconsistentArrayTypingError) -> Self {
+        TypeCheckError::InconsistentArrayTyping(err)
     }
 }
 
@@ -598,6 +620,104 @@ impl fmt::Display for IncompatibleArmTypesError {
 impl Error for IncompatibleArmTypesError {
     fn description(&self) -> &str {
         "incompatible arm types"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UntypedEmptyArrayError {
+    span: Span,
+}
+
+impl UntypedEmptyArrayError {
+    pub fn new(span: Span) -> Self {
+        UntypedEmptyArrayError { span }
+    }
+}
+
+impl Hint for UntypedEmptyArrayError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: self.span,
+                 message: format!("Add a type before this array"),
+             }]
+    }
+}
+
+impl fmt::Display for UntypedEmptyArrayError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "empty array must be type annotated")
+    }
+}
+
+impl Error for UntypedEmptyArrayError {
+    fn description(&self) -> &str {
+        "untyped empty array"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArrayTypeDecl {
+    Explicit(Span),
+    FirstElem(Span),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InconsistentArrayTypingError {
+    pub expected: Type,
+    pub got: Type,
+    pub argument_id: usize,
+    pub span: Span,
+    pub type_decl: ArrayTypeDecl,
+}
+
+impl Hint for InconsistentArrayTypingError {
+    fn hints(&self) -> Vec<Hinter> {
+        vec![Hinter {
+                 type_: HinterType::Error,
+                 span: self.span,
+                 message: format!("Got a `{:?}` here", self.got),
+             },
+
+             match self.type_decl {
+                 ArrayTypeDecl::Explicit(span) => {
+                     Hinter {
+                         type_: HinterType::Info,
+                         span,
+                         message: format!("The element type was declared here"),
+                     }
+                 }
+                 ArrayTypeDecl::FirstElem(span) => {
+                     Hinter {
+                         type_: HinterType::Info,
+                         span,
+                         message: format!("The element type: `{:?}` was deduced from here", self.expected),
+                     }
+                 }
+             }]
+    }
+}
+
+impl fmt::Display for InconsistentArrayTypingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "element {} is not consistent with the type of element inside this array: `{:?}`",
+               self.argument_id,
+               self.expected)
+    }
+}
+
+impl Error for InconsistentArrayTypingError {
+    fn description(&self) -> &str {
+        "inconsistent array typing"
     }
 
     fn cause(&self) -> Option<&Error> {

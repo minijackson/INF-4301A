@@ -70,12 +70,12 @@ impl<T> BindingInfo<T> {
 }
 
 impl BindingInfo<TypeInfo> {
-    pub fn get_type(&self) -> Type {
+    pub fn get_type(&self) -> &Type {
         use self::BindingInfo::*;
 
         match *self {
             Variable { ref info, .. } |
-            Argument { ref info, .. } => info.0,
+            Argument { ref info, .. } => &info.0,
         }
     }
 }
@@ -145,8 +145,10 @@ impl<T> Environment<T> {
         let print_sig = quick_hashmap!(
                     vec![Integer] => Void,
                     vec![Float] => Void,
+                    vec![Bool] => Void,
                     vec![Str] => Void
                     );
+                    //vec![Array(_)] => Void
 
         Self {
             scopes: LinkedList::new(),
