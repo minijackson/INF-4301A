@@ -4,6 +4,7 @@ use error::ConversionError;
 use itertools::Itertools;
 
 use std::char;
+use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Debug,Clone,PartialEq,Eq,Hash)]
@@ -188,6 +189,76 @@ impl fmt::Display for Value {
             Array { ref values, .. } => write!(f, "[{}]", values.iter().join(", ")),
             Void => Err(fmt::Error::default()),
         }
+    }
+}
+
+pub trait Match {
+    fn match_with(&self, given_type: &Type, types: &HashMap<&str, Generic>) -> bool;
+}
+
+#[derive(Debug,Clone,PartialEq,Eq,Hash)]
+pub enum Generic {
+    Builtin(Type),
+    Abstract(AbstractType),
+    Sum(SumType),
+    Named(String),
+    Any,
+}
+
+impl Match for Generic {
+    fn match_with(&self, given_type: &Type, types: &HashMap<&str, Generic>) -> bool {
+        use self::Generic::*;
+
+        match *self {
+            Builtin(ref builtin) if builtin == given_type => true,
+            Builtin(_) => false,
+            Abstract(ref abstr) => abstr.match_with(given_type, types),
+            Sum(ref sum) => sum.match_with(given_type, types),
+            Named(ref name) => {
+                if let Some(ref candidate) = types.get(name.as_str()) {
+                    candidate.match_with(given_type, types)
+                } else {
+                    false
+                }
+            }
+            Any => true,
+        }
+    }
+}
+
+impl From<Type> for Generic {
+    fn from(builtin: Type) -> Self {
+        Generic::Builtin(builtin)
+    }
+}
+
+#[derive(Debug,Clone,PartialEq,Eq,Hash)]
+pub enum AbstractType {
+    Array(Box<Generic>),
+}
+
+impl Match for AbstractType {
+    fn match_with(&self, given_type: &Type, types: &HashMap<&str, Generic>) -> bool {
+        use self::AbstractType::*;
+
+        match (self, given_type) {
+            (&Array(ref el_type), &Type::Array(ref given_el_type)) => (*el_type).match_with(&*given_el_type, types),
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug,Clone,PartialEq,Eq,Hash)]
+pub struct SumType {
+    pub possibilities: Vec<Generic>,
+}
+
+impl Match for SumType {
+    fn match_with(&self, given_type: &Type, types: &HashMap<&str, Generic>) -> bool {
+        self.possibilities
+            .iter()
+            .find(|&candidate| candidate.match_with(given_type, types))
+            .is_some()
     }
 }
 

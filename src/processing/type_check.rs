@@ -116,9 +116,9 @@ impl TypeCheck for Expr {
                                                                   *span)
                                                 .into()
                                     })
-                } else if let Some(builtin) = env.get_builtin_mut(name) {
+                } else if let Some(builtin) = env.get_builtin(name) {
                     builtin
-                        .return_type(&arg_types)
+                        .return_type(&arg_types, &env.types)
                         .ok_or_else(|| {
                                         NoSuchSignatureError::new(name.clone(),
                                                                   arg_types.clone(),
@@ -219,7 +219,7 @@ impl TypeCheck for Expr {
 
                 env.get_builtin(name)
                     .ok_or_else(|| UndefinedFunctionError::new(name.clone(), *span))?
-                    .return_type(&arg_types)
+                    .return_type(&arg_types, &env.types)
                     .ok_or_else(|| {
                                     NoSuchSignatureError::new(name.clone(),
                                                               arg_types.clone(),
@@ -239,7 +239,7 @@ impl TypeCheck for Expr {
 
                 env.get_builtin(name)
                     .ok_or_else(|| UndefinedFunctionError::new(name.clone(), *span))?
-                    .return_type(&arg_types)
+                    .return_type(&arg_types, &env.types)
                     .ok_or_else(|| {
                                     NoSuchSignatureError::new(name.clone(),
                                                               arg_types.clone(),

@@ -1,7 +1,7 @@
 use ast::{Declaration, FunctionDecl, ArgumentDecl, VariableDecl, Span};
 use builtins;
 use error::AlreadyDeclaredError;
-use type_sys::{Value, Type};
+use type_sys::{Value, Type, Generic, AbstractType, SumType, Match};
 
 use std::collections::{LinkedList, HashMap};
 use std::collections::hash_map::Entry;
@@ -9,7 +9,8 @@ use std::collections::hash_map::Entry;
 pub struct Environment<T> {
     // TODO: change that abomination of a LinkedList
     scopes: LinkedList<Scope<T>>,
-    builtins: HashMap<String, BuiltinInfo>,
+    builtins: HashMap<&'static str, BuiltinInfo>,
+    pub types: HashMap<&'static str, Generic>,
 }
 
 pub struct Scope<T> {
@@ -28,13 +29,13 @@ impl<T> Scope<T> {
 
 pub struct BuiltinInfo {
     pub name: String,
-    pub signatures: HashMap<Vec<Type>, Type>,
+    pub signatures: HashMap<Vec<Generic>, Type>,
     pub call: Box<FnMut(&[Value]) -> Value + 'static>,
 }
 
 impl BuiltinInfo {
     pub fn new(name: String,
-               signatures: HashMap<Vec<Type>, Type>,
+               signatures: HashMap<Vec<Generic>, Type>,
                call: Box<FnMut(&[Value]) -> Value>)
                -> Self {
         BuiltinInfo {
@@ -44,12 +45,16 @@ impl BuiltinInfo {
         }
     }
 
-    pub fn is_defined_for(&self, arg_types: &[Type]) -> bool {
-        self.signatures.contains_key(arg_types)
-    }
-
-    pub fn return_type(&self, arg_types: &[Type]) -> Option<Type> {
-        self.signatures.get(arg_types).cloned()
+    pub fn return_type(&self, arg_types: &[Type], types: &HashMap<&str, Generic>) -> Option<Type> {
+        self.signatures
+            .iter()
+            .find(|&(params, _)| {
+                      params
+                          .iter()
+                          .zip(arg_types)
+                          .all(|(cand_type, arg_type)| cand_type.match_with(arg_type, types))
+                  })
+            .map(|(_, type_)| type_.clone())
     }
 }
 
@@ -121,55 +126,70 @@ impl<T> Environment<T> {
         }
 
         let plus_sig = quick_hashmap!(
-                    vec![Integer, Integer] => Integer,
-                    vec![Float, Float] => Float,
-                    vec![Str, Str] => Str
+                    vec![Integer.into(), Integer.into()] => Integer,
+                    vec![Float.into(), Float.into()] => Float,
+                    vec![Str.into(), Str.into()] => Str
                     );
 
         let arit_sig = quick_hashmap!(
-                    vec![Integer, Integer] => Integer,
-                    vec![Float, Float] => Float
+                    vec![Integer.into(), Integer.into()] => Integer,
+                    vec![Float.into(), Float.into()] => Float
                     );
 
         let cmp_sig = quick_hashmap!(
-                    vec![Integer, Integer] => Bool,
-                    vec![Float, Float] => Bool,
-                    vec![Str, Str] => Bool
+                    vec![Integer.into(), Integer.into()] => Bool,
+                    vec![Float.into(), Float.into()] => Bool,
+                    vec![Str.into(), Str.into()] => Bool
                     );
 
         let unary_sig = quick_hashmap!(
-                    vec![Integer] => Integer,
-                    vec![Float] => Float
+                    vec![Integer.into()] => Integer,
+                    vec![Float.into()] => Float
                     );
 
         let print_sig = quick_hashmap!(
-                    vec![Integer] => Void,
-                    vec![Float] => Void,
-                    vec![Bool] => Void,
-                    vec![Str] => Void
+                    vec![Integer.into()] => Void,
+                    vec![Float.into()] => Void,
+                    vec![Bool.into()] => Void,
+                    vec![Str.into()] => Void,
+                    vec![Generic::Named("Printable".to_string())] => Void
                     );
-                    //vec![Array(_)] => Void
+
+        let printable_type = Generic::Sum(SumType {
+                    possibilities: vec![
+                        Integer.into(),
+                        Float.into(),
+                        Bool.into(),
+                        Str.into(),
+                        Generic::Abstract(AbstractType::Array(Box::new(Generic::Named("Printable".to_string())))),
+                    ]
+                });
+
 
         Self {
             scopes: LinkedList::new(),
             builtins: quick_hashmap!(
-                "+".to_string() => BuiltinInfo::new("+".to_string(), plus_sig.clone(), Box::new(builtins::plus)),
-                "-".to_string() => BuiltinInfo::new("-".to_string(), arit_sig.clone(), Box::new(builtins::minus)),
-                "*".to_string() => BuiltinInfo::new("*".to_string(), arit_sig.clone(), Box::new(builtins::mul)),
-                "/".to_string() => BuiltinInfo::new("/".to_string(), arit_sig,         Box::new(builtins::div)),
+                "+" => BuiltinInfo::new("+".to_string(), plus_sig.clone(), Box::new(builtins::plus)),
+                "-" => BuiltinInfo::new("-".to_string(), arit_sig.clone(), Box::new(builtins::minus)),
+                "*" => BuiltinInfo::new("*".to_string(), arit_sig.clone(), Box::new(builtins::mul)),
+                "/" => BuiltinInfo::new("/".to_string(), arit_sig,         Box::new(builtins::div)),
 
-                "<".to_string()  => BuiltinInfo::new("<".to_string(),  cmp_sig.clone(), Box::new(builtins::lower)),
-                "<=".to_string() => BuiltinInfo::new("<=".to_string(), cmp_sig.clone(), Box::new(builtins::lower_eq)),
-                ">".to_string()  => BuiltinInfo::new(">".to_string(),  cmp_sig.clone(), Box::new(builtins::greater)),
-                ">=".to_string() => BuiltinInfo::new(">=".to_string(), cmp_sig.clone(), Box::new(builtins::greater_eq)),
-                "=".to_string()  => BuiltinInfo::new("=".to_string(),  cmp_sig.clone(), Box::new(builtins::equal)),
-                "<>".to_string() => BuiltinInfo::new("<>".to_string(), cmp_sig,         Box::new(builtins::not_equal)),
+                "<"  => BuiltinInfo::new("<".to_string(),  cmp_sig.clone(), Box::new(builtins::lower)),
+                "<=" => BuiltinInfo::new("<=".to_string(), cmp_sig.clone(), Box::new(builtins::lower_eq)),
+                ">"  => BuiltinInfo::new(">".to_string(),  cmp_sig.clone(), Box::new(builtins::greater)),
+                ">=" => BuiltinInfo::new(">=".to_string(), cmp_sig.clone(), Box::new(builtins::greater_eq)),
+                "="  => BuiltinInfo::new("=".to_string(),  cmp_sig.clone(), Box::new(builtins::equal)),
+                "<>" => BuiltinInfo::new("<>".to_string(), cmp_sig,         Box::new(builtins::not_equal)),
 
-                "un+".to_string() => BuiltinInfo::new("un+".to_string(), unary_sig.clone(), Box::new(builtins::un_plus)),
-                "un-".to_string() => BuiltinInfo::new("un-".to_string(), unary_sig,         Box::new(builtins::un_minus)),
+                "un+" => BuiltinInfo::new("un+".to_string(), unary_sig.clone(), Box::new(builtins::un_plus)),
+                "un-" => BuiltinInfo::new("un-".to_string(), unary_sig,         Box::new(builtins::un_minus)),
 
-                "print".to_string() => BuiltinInfo::new("print".to_string(), print_sig.clone(), Box::new(builtins::print)),
-                "println".to_string() => BuiltinInfo::new("println".to_string(), print_sig, Box::new(builtins::println))
+                "print"   => BuiltinInfo::new("print".to_string(), print_sig.clone(), Box::new(builtins::print)),
+                "println" => BuiltinInfo::new("println".to_string(), print_sig, Box::new(builtins::println))
+                ),
+
+            types: quick_hashmap!(
+                "Printable" => printable_type
                 ),
         }
     }
