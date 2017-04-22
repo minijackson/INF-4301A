@@ -203,6 +203,17 @@ impl Evaluate for Expr {
                 }
             }
 
+            Tuple(ref exprs) => {
+                let (element_types, values) = exprs.iter().map(|expr| {
+                    let value = expr.evaluate(env);
+                    let type_ = value.get_type();
+                    (type_, value)
+                })
+                .unzip();
+
+                type_sys::Value::Tuple { element_types, values }
+            }
+
             Value(ref value) => value.clone(),
 
         }

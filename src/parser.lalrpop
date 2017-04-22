@@ -174,7 +174,7 @@ UnaryOp: UnaryOpCode = {
 pub Factor: Box<Expr> = {
     Let,
     Variable,
-    Value,
+    Literal,
     "(" <Expression> ")" => <>,
     "(" <expr:Expression> "," <exprs:Expressions> ")" => {
         let mut exprs = exprs;
@@ -254,7 +254,7 @@ Args = SpannedComma<Expression>;
 Variable: Box<Expr> = <start:@L> <name: Identifier> <end:@R>
     => Box::new(Expr::Variable { name, span: Span(start, end) });
 
-Value: Box<Expr> = {
+Literal: Box<Expr> = {
     <start:@L> <val:r"[0-9]+"> <end:@R> =>?
                         i64::from_str(val)
                             .map_err(|_| {
@@ -284,6 +284,11 @@ Value: Box<Expr> = {
     },
     "true"  => Box::new(Expr::Value(type_sys::Value::Bool(true))),
     "false" => Box::new(Expr::Value(type_sys::Value::Bool(false))),
+    Array,
+    Tuple,
+};
+
+Array: Box<Expr> = {
     <start:@L> <declared_type:(<@L> <Type> <@R>)?> "[" <values:SpannedComma<Expression>> "]" <end:@R>
         => {
             let (declared_type, declared_type_span) = if let Some((start, type_, end)) = declared_type {
@@ -301,6 +306,10 @@ Value: Box<Expr> = {
         },
 };
 
+Tuple: Box<Expr> = {
+    "{" <values:Comma<Expression>> "}" => Box::new(Expr::Tuple(values))
+};
+
 Type: type_sys::Type = {
     "Void" => type_sys::Type::Void,
     "Integer" => type_sys::Type::Integer,
@@ -308,6 +317,7 @@ Type: type_sys::Type = {
     "Bool" => type_sys::Type::Bool,
     "Str" => type_sys::Type::Str,
     "Array" "(" <Type> ")" => type_sys::Type::Array(Box::new(<>)),
+    "Tuple" "(" <Comma<Type>> ")" => type_sys::Type::Tuple(<>),
 };
 
 Identifier: String = r"[[:alpha:]][[:alnum:]_]*" => <>.to_string();

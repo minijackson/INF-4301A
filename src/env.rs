@@ -148,11 +148,7 @@ impl<T> Environment<T> {
                     );
 
         let print_sig = quick_hashmap!(
-                    vec![Integer.into()] => Void,
-                    vec![Float.into()] => Void,
-                    vec![Bool.into()] => Void,
-                    vec![Str.into()] => Void,
-                    vec![Generic::Named("Printable".to_string())] => Void
+                    vec![Generic::Any] => Void
                     );
 
         let printable_type = Generic::Sum(SumType {
@@ -164,7 +160,6 @@ impl<T> Environment<T> {
                         Generic::Abstract(AbstractType::Array(Box::new(Generic::Named("Printable".to_string())))),
                     ]
                 });
-
 
         Self {
             scopes: LinkedList::new(),

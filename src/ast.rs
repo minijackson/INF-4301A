@@ -67,6 +67,7 @@ pub enum Expr {
         declared_type_span: Option<Span>,
         span: Span,
     },
+    Tuple(Vec<Box<Expr>>),
     Value(type_sys::Value),
 }
 

@@ -7,7 +7,7 @@ use std::char;
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Debug,Clone,PartialEq,Eq,Hash)]
+#[derive(Clone,PartialEq,Eq,Hash)]
 pub enum Type {
     Void,
     Integer,
@@ -15,6 +15,7 @@ pub enum Type {
     Bool,
     Str,
     Array(Box<Type>),
+    Tuple(Vec<Type>),
 }
 
 impl Type {
@@ -31,27 +32,75 @@ impl Type {
             Integer | Float => {
                 match *dest {
                     Void | Integer | Float | Bool | Str => true,
-                    Array(_) => false,
+                    Array(_) | Tuple(_) => false,
                 }
             }
             Bool => {
                 match *dest {
                     Void | Bool | Str => true,
-                    Integer | Float | Array(_) => false,
+                    Integer | Float | Array(_) | Tuple(_) => false,
                 }
             }
             Str => {
                 match *dest {
                     Void | Str => true,
                     // TODO
-                    Integer | Float | Bool | Array(_) => false,
+                    Integer | Float | Bool | Array(_) | Tuple(_) => false,
                 }
             }
-            Array(_) => {
+            Array(ref my_type) => {
                 match *dest {
-                    Void | Array(_) => true,
+                    Void => true,
+                    Array(ref type_) => my_type.is_convertible_to(type_),
+                    Integer | Float | Bool | Str | Tuple(_) => false,
+                }
+            }
+            Tuple(ref my_types) => {
+                match *dest {
+                    Void => true,
+                    Array(ref type_) => {
+                        my_types
+                            .iter()
+                            .all(|my_type| my_type.is_convertible_to(type_))
+                    }
+                    Tuple(ref types) => {
+                        my_types.len() == types.len() &&
+                        my_types
+                            .iter()
+                            .zip(types)
+                            .all(|(my_type, type_)| my_type.is_convertible_to(type_))
+                    }
                     Integer | Float | Bool | Str => false,
                 }
+            }
+        }
+    }
+}
+
+impl fmt::Debug for Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Type::*;
+
+        match *self {
+            Void => write!(f, "Void"),
+            Integer => write!(f, "Integer"),
+            Float => write!(f, "Float"),
+            Bool => write!(f, "Bool"),
+            Str => write!(f, "Str"),
+            Array(ref type_) => write!(f, "Array({:?})", type_),
+            Tuple(ref types) => {
+                write!(f, "Tuple(")?;
+
+                if types.len() > 0 {
+
+                    write!(f, "{:?}", types[0])?;
+
+                    for type_ in types.iter().skip(1) {
+                        write!(f, ", {:?}", type_)?;
+                    }
+                }
+
+                write!(f, ")")
             }
         }
     }
@@ -68,6 +117,10 @@ pub enum Value {
         element_type: Type,
         values: Vec<Value>,
     },
+    Tuple {
+        element_types: Vec<Type>,
+        values: Vec<Value>,
+    },
 }
 
 impl Value {
@@ -80,6 +133,11 @@ impl Value {
             Array { ref values, .. } => Ok(values.len() != 0),
             // TODO
             Str(_) => Err(ConversionError::new(Type::Str, Type::Bool, Span(0, 0))),
+            Tuple { ref element_types, .. } => {
+                Err(ConversionError::new(Type::Tuple(element_types.clone()),
+                                         Type::Bool,
+                                         Span(0, 0)))
+            }
             Void => Err(ConversionError::new(Type::Void, Type::Bool, Span(0, 0))),
         }
     }
@@ -94,6 +152,7 @@ impl Value {
             Bool(_) => Type::Bool,
             Str(_) => Type::Str,
             Array { ref element_type, .. } => Type::Array(Box::new(element_type.clone())),
+            Tuple { ref element_types, .. } => Type::Tuple(element_types.clone()),
         }
     }
 
@@ -114,7 +173,7 @@ impl Value {
                     Type::Float => Float(val as f64),
                     Type::Bool => Bool(val != 0),
                     Type::Str => Str(val.to_string()),
-                    Type::Array(_) => panic!("Unnatural conversion at runtime"),
+                    Type::Array(_) | Type::Tuple(_) => panic!("Unnatural conversion at runtime"),
                 }
             }
             Float(val) => {
@@ -124,7 +183,7 @@ impl Value {
                     Type::Float => Float(val),
                     Type::Bool => Bool(val != 0f64),
                     Type::Str => Str(val.to_string()),
-                    Type::Array(_) => panic!("Unnatural conversion at runtime"),
+                    Type::Array(_) | Type::Tuple(_) => panic!("Unnatural conversion at runtime"),
                 }
             }
             Bool(val) => {
@@ -132,7 +191,7 @@ impl Value {
                     Type::Void => Void,
                     Type::Bool => Bool(val),
                     Type::Str => Str(val.to_string()),
-                    Type::Integer | Type::Float | Type::Array(_) => panic!("Unnatural conversion at runtime"),
+                    Type::Integer | Type::Float | Type::Array(_) | Type::Tuple(_) => panic!("Unnatural conversion at runtime"),
                 }
             }
             Str(val) => {
@@ -140,7 +199,9 @@ impl Value {
                     Type::Void => Value::Void,
                     Type::Str => Str(val),
                     // TODO
-                    Type::Integer | Type::Float | Type::Bool | Type::Array(_) => panic!("Unnatural conversion at runtime"),
+                    Type::Integer | Type::Float | Type::Bool | Type::Array(_) | Type::Tuple(_) => {
+                        panic!("Unnatural conversion at runtime")
+                    }
                 }
             }
             Array {
@@ -158,6 +219,42 @@ impl Value {
                     Type::Array(ref new_element_type) => {
                         Value::Array {
                             element_type: *new_element_type.clone(),
+                            values: values
+                                .into_iter()
+                                .map(|value| value.into(new_element_type))
+                                .collect(),
+                        }
+                    }
+                    Type::Integer | Type::Float | Type::Bool | Type::Str | Type::Tuple(_) => {
+                        panic!("Unnatural conversion at runtime")
+                    }
+                }
+            }
+            Tuple {
+                element_types,
+                values,
+            } => {
+                match *dest {
+                    Type::Void => Value::Void,
+                    Type::Tuple(ref new_element_types) if *new_element_types == element_types => {
+                        Value::Tuple {
+                            element_types,
+                            values,
+                        }
+                    }
+                    Type::Tuple(ref new_element_types) => {
+                        Value::Tuple {
+                            element_types: new_element_types.clone(),
+                            values: values
+                                .into_iter()
+                                .zip(new_element_types)
+                                .map(|(value, new_element_type)| value.into(new_element_type))
+                                .collect(),
+                        }
+                    }
+                    Type::Array(ref new_element_type) => {
+                        Value::Array {
+                            element_type: (**new_element_type).clone(),
                             values: values
                                 .into_iter()
                                 .map(|value| value.into(new_element_type))
@@ -187,7 +284,8 @@ impl fmt::Display for Value {
             Bool(ref value) => write!(f, "{}", value),
             Str(ref value) => write!(f, "{}", value),
             Array { ref values, .. } => write!(f, "[{}]", values.iter().join(", ")),
-            Void => Err(fmt::Error::default()),
+            Tuple { ref values, .. } => write!(f, "{{{}}}", values.iter().join(", ")),
+            Void => write!(f, "nil"),
         }
     }
 }
@@ -242,7 +340,9 @@ impl Match for AbstractType {
         use self::AbstractType::*;
 
         match (self, given_type) {
-            (&Array(ref el_type), &Type::Array(ref given_el_type)) => (*el_type).match_with(&*given_el_type, types),
+            (&Array(ref el_type), &Type::Array(ref given_el_type)) => {
+                (*el_type).match_with(&*given_el_type, types)
+            }
             _ => false,
         }
     }

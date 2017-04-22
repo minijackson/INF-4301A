@@ -140,6 +140,14 @@ impl Print for Expr {
                             .join(", "))
             }
 
+            Tuple(ref values) => {
+                format!("{{{}}}",
+                        values
+                            .iter()
+                            .map(|value| value.pretty_print(indent))
+                            .join(", "))
+            }
+
             // For strings, use the debug trait to add quotes
             Value(type_sys::Value::Str(ref value)) => format!("{:?}", value),
 

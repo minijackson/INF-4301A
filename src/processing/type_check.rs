@@ -1,8 +1,9 @@
 use ast::*;
 use env::{Environment, BindingInfo, TypeInfo};
-use error::{ArrayTypeDecl, ConversionError, IncompatibleArmTypesError, InconsistentArrayTypingError,
-            MismatchedTypesError, NoSuchSignatureError, TypeCheckError, UnboundedVarError,
-            UndefinedFunctionError, UntypedEmptyArrayError, VoidVarDeclartionError};
+use error::{ArrayTypeDecl, ConversionError, IncompatibleArmTypesError,
+            InconsistentArrayTypingError, MismatchedTypesError, NoSuchSignatureError,
+            TypeCheckError, UnboundedVarError, UndefinedFunctionError, UntypedEmptyArrayError,
+            VoidVarDeclartionError};
 use type_sys::Type;
 
 pub trait TypeCheck {
@@ -312,19 +313,29 @@ impl TypeCheck for Expr {
                     let span = values[pos].1;
 
                     return Err(InconsistentArrayTypingError {
-                        expected: type_,
-                        got: wrong_type,
-                        argument_id: pos,
-                        span,
-                        type_decl: if let Some(span) = first_span {
-                            ArrayTypeDecl::FirstElem(span)
-                        } else {
-                            ArrayTypeDecl::Explicit(declared_type_span.unwrap())
-                        }
-                    }.into());
+                                       expected: type_,
+                                       got: wrong_type,
+                                       argument_id: pos,
+                                       span,
+                                       type_decl: if let Some(span) = first_span {
+                                           ArrayTypeDecl::FirstElem(span)
+                                       } else {
+                                           ArrayTypeDecl::Explicit(declared_type_span.unwrap())
+                                       },
+                                   }
+                                   .into());
                 }
 
                 Ok(Type::Array(Box::new(type_)))
+            }
+
+            Tuple(ref mut exprs) => {
+                let element_types = exprs
+                    .iter_mut()
+                    .map(|expr| expr.type_check(env))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                Ok(Type::Tuple(element_types))
             }
 
             Value(ref value) => Ok(value.get_type()),
