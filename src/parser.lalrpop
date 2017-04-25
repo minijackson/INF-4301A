@@ -54,7 +54,8 @@ pub Expression: Box<Expr> = {
 //==================
 
 Tier0: Box<Expr> = {
-    If, While,For,
+    If, While, For,
+    Let,
     Tier1
 };
 
@@ -101,7 +102,23 @@ Tier1: Box<Expr> = {
             value,
             value_span: Span(value_start, value_end),
         }),
+
+    "match" <lhs_patt_start:@L> <patt:Pattern> <lhs_patt_end:@R> ":=" <rhs_patt_start:@L> <value:Expression> <rhs_patt_end:@R>
+        => Box::new(Expr::PatternMatch {
+            lhs: patt,
+            lhs_span: Span(lhs_patt_start, lhs_patt_end),
+            rhs: value,
+            rhs_span: Span(rhs_patt_start, rhs_patt_end),
+        }),
+
     Tier2
+};
+
+Pattern: Box<Expr> = {
+    Literal,
+    Variable,
+    Array<Pattern>,
+    Tuple<Pattern>,
 };
 
 BinOpTier<Op, NextTier>: Box<Expr> = {
@@ -172,8 +189,9 @@ UnaryOp: UnaryOpCode = {
 //==========
 
 pub Factor: Box<Expr> = {
-    Let,
     Variable,
+    Array<Expression>,
+    Tuple<Expression>,
     Literal,
     "(" <Expression> ")" => <>,
     "(" <expr:Expression> "," <exprs:Expressions> ")" => {
@@ -284,12 +302,10 @@ Literal: Box<Expr> = {
     },
     "true"  => Box::new(Expr::Value(type_sys::Value::Bool(true))),
     "false" => Box::new(Expr::Value(type_sys::Value::Bool(false))),
-    Array,
-    Tuple,
 };
 
-Array: Box<Expr> = {
-    <start:@L> <declared_type:(<@L> <Type> <@R>)?> "[" <values:SpannedComma<Expression>> "]" <end:@R>
+Array<T>: Box<Expr> = {
+    <start:@L> <declared_type:(<@L> <Type> <@R>)?> "[" <values:SpannedComma<T>> "]" <end:@R>
         => {
             let (declared_type, declared_type_span) = if let Some((start, type_, end)) = declared_type {
                 (Some(type_), Some(Span(start, end)))
@@ -306,8 +322,8 @@ Array: Box<Expr> = {
         },
 };
 
-Tuple: Box<Expr> = {
-    "{" <values:Comma<Expression>> "}" => Box::new(Expr::Tuple(values))
+Tuple<T>: Box<Expr> = {
+    "{" <values:Comma<T>> "}" => Box::new(Expr::Tuple(values))
 };
 
 Type: type_sys::Type = {

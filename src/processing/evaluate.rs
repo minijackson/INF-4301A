@@ -1,6 +1,7 @@
 use ast::*;
 use type_sys::Value;
 use env::{Environment, BindingInfo, ValueInfo};
+use processing::pattern_match::PatternMatch;
 
 pub trait Evaluate {
     fn evaluate(&self, env: &mut Environment<ValueInfo>) -> Value;
@@ -55,6 +56,14 @@ impl Evaluate for Expr {
                 let value = value.evaluate(env);
                 env.assign(name, value.clone());
                 value
+            }
+
+            PatternMatch {
+                ref lhs,
+                ref rhs,
+                ..
+            } => {
+                type_sys::Value::Bool(lhs.pattern_match(&rhs.evaluate(env), env))
             }
 
             Function {

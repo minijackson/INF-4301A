@@ -699,7 +699,8 @@ impl Hint for InconsistentArrayTypingError {
                      Hinter {
                          type_: HinterType::Info,
                          span,
-                         message: format!("The element type: `{:?}` was deduced from here", self.expected),
+                         message: format!("The element type: `{:?}` was deduced from here",
+                                          self.expected),
                      }
                  }
              }]
@@ -789,7 +790,18 @@ impl<'a> fmt::Display for ParseError<'a> {
                     Some((_, (_, token), _)) => write!(f, "Unexpected \"{}\"", token)?,
                 }
                 if !expected.is_empty() {
-                    write!(f, ", expected one of: {}", expected.iter().join(", "))?;
+                    write!(f,
+                           ", expected one of: {}",
+                           expected
+                               .iter()
+                               .map(|x| match x.as_str() {
+                                        r##"r#"\"(?:[^\"\\\\]|\\\\.)*\""#"## => "string literal",
+                                        r##"r#"[0-9]+"#"## => "integer literal",
+                                        r##"r#"[0-9]+\\.[0-9]*"#"## => "float literal",
+                                        r##"r#"[[:alpha:]][[:alnum:]_]*"#"## => "identifier",
+                                        _ => x,
+                                    })
+                               .join(", "))?;
                 }
                 Ok(())
             }

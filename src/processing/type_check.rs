@@ -4,6 +4,7 @@ use error::{ArrayTypeDecl, ConversionError, IncompatibleArmTypesError,
             InconsistentArrayTypingError, MismatchedTypesError, NoSuchSignatureError,
             TypeCheckError, UnboundedVarError, UndefinedFunctionError, UntypedEmptyArrayError,
             VoidVarDeclartionError};
+use processing::pattern_match_check::PatternMatchCheck;
 use type_sys::Type;
 
 pub trait TypeCheck {
@@ -87,6 +88,15 @@ impl TypeCheck for Expr {
                 }
 
                 Ok(declared_type.clone())
+            }
+
+            PatternMatch {
+                ref mut lhs,
+                ref mut rhs,
+                ..
+            } => {
+                lhs.check_match(rhs, env)?;
+                Ok(Type::Bool)
             }
 
             Function {

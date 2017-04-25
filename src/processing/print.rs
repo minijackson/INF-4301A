@@ -50,6 +50,12 @@ impl Print for Expr {
                 ..
             } => format!("{} := {}", name, value.pretty_print(indent)),
 
+            PatternMatch {
+                ref lhs,
+                ref rhs,
+                ..
+            } => format!("(match {} := {})", lhs.pretty_print(indent), rhs.pretty_print(indent)),
+
             Function { ref name, ref args, .. } => {
                 format!("{}({})",
                         name,

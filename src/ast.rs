@@ -20,6 +20,12 @@ pub enum Expr {
         value: Box<Expr>,
         value_span: Span,
     },
+    PatternMatch {
+        lhs: Box<Expr>,
+        lhs_span: Span,
+        rhs: Box<Expr>,
+        rhs_span: Span,
+    },
     Function {
         name: String,
         args: Vec<(Box<Expr>, Span)>,
