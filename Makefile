@@ -1,6 +1,6 @@
-release: ./target/release/inf_4301a
+release: cargo ./target/release/inf_4301a
 
-debug: ./target/debug/inf_4301a
+debug: cargo ./target/debug/inf_4301a
 
 run: release
 	./target/release/inf_4301a
@@ -11,7 +11,7 @@ run: release
 ./target/debug/inf_4301a:
 	cargo build
 
-check:
+check: cargo
 	cargo test
 
 cargo:
