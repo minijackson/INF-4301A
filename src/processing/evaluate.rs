@@ -156,8 +156,7 @@ impl Evaluate for Expr {
                         }
                     }
                     other => {
-                        unreachable!("{:?} not an int, weren't you supposed to be good at coding?",
-                                     other)
+                        panic!("{:?} is not of type (Integer, Integer) in for loop evaluation", other)
                     }
                 }
                 env.leave_scope();

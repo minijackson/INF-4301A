@@ -1,5 +1,5 @@
 use ast::{Declaration, Span};
-use type_sys::Type;
+use type_sys::{Generic, Type};
 
 use itertools::Itertools;
 use lalrpop_util;
@@ -464,7 +464,7 @@ impl From<InconsistentArrayTypingError> for TypeCheckError {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MismatchedTypesError {
-    pub expected: Type,
+    pub expected: Generic,
     pub got: Type,
     // TODO: make that a reference
     pub binding: Option<Declaration>,
@@ -472,7 +472,7 @@ pub struct MismatchedTypesError {
 }
 
 impl MismatchedTypesError {
-    pub fn new(expected: Type, got: Type, span: Span) -> Self {
+    pub fn new(expected: Generic, got: Type, span: Span) -> Self {
         MismatchedTypesError {
             expected,
             got,
@@ -481,7 +481,7 @@ impl MismatchedTypesError {
         }
     }
 
-    pub fn from_binding(binding: Declaration, expected: Type, got: Type, span: Span) -> Self {
+    pub fn from_binding(binding: Declaration, expected: Generic, got: Type, span: Span) -> Self {
         MismatchedTypesError {
             expected,
             got,
@@ -522,7 +522,17 @@ impl Hint for MismatchedTypesError {
 
 impl fmt::Display for MismatchedTypesError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "expected `{:?}`, got `{:?}`", self.expected, self.got)
+        use self::Generic::*;
+
+        write!(f, "expected ")?;
+        match self.expected {
+            Builtin(ref type_) => write!(f, "`{:?}`", type_)?,
+            Abstract(ref type_) => write!(f, "abstract type `{:?}`", type_)?,
+            Sum(ref type_) => write!(f, "either {}", type_.possibilities.iter().map(|possibility| format!("`{:?}`", possibility)).join(","))?,
+            Named(ref name) => write!(f, "generic type `{}`", name)?,
+            Any => unreachable!("Any type pattern not satisfied"),
+        }
+        write!(f, ", got `{:?}`", self.got)
     }
 }
 

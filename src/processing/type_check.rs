@@ -81,7 +81,7 @@ impl TypeCheck for Expr {
                     return Err(MismatchedTypesError::from_binding(var_info
                                                                       .get_declaration()
                                                                       .clone(),
-                                                                  declared_type.clone(),
+                                                                  declared_type.clone().into(),
                                                                   assign_type,
                                                                   *value_span)
                                        .into());
@@ -150,7 +150,7 @@ impl TypeCheck for Expr {
                 ref false_branch_span,
             } => {
                 if cond.type_check(env)? == Type::Void {
-                    return Err(MismatchedTypesError::new(Type::Bool, Type::Void, *cond_span)
+                    return Err(MismatchedTypesError::new(Type::Bool.into(), Type::Void, *cond_span)
                                    .into());
                 }
 
@@ -174,7 +174,7 @@ impl TypeCheck for Expr {
                 ref cond_span,
             } => {
                 if cond.type_check(env)? == Type::Void {
-                    return Err(MismatchedTypesError::new(Type::Bool, Type::Void, *cond_span)
+                    return Err(MismatchedTypesError::new(Type::Bool.into(), Type::Void, *cond_span)
                                    .into());
                 }
 
@@ -195,10 +195,15 @@ impl TypeCheck for Expr {
                 let goal_type = goal.type_check(env)?;
 
                 if binding_type != Type::Integer {
-                    return Err(MismatchedTypesError::new(Type::Integer,
+                    return Err(MismatchedTypesError::new(Type::Integer.into(),
                                                          binding_type,
                                                          binding.value_span)
                                        .into());
+                }
+
+                if goal_type != binding_type {
+                    return Err(MismatchedTypesError::new(binding_type.into(), goal_type, *goal_span)
+                                   .into());
                 }
 
                 env.declare_var(binding.name.clone(),
@@ -206,11 +211,6 @@ impl TypeCheck for Expr {
                                      declaration: (**binding).clone(),
                                      info: TypeInfo(binding_type),
                                  })?;
-
-                if goal_type != Type::Integer {
-                    return Err(MismatchedTypesError::new(Type::Integer, goal_type, *goal_span)
-                                   .into());
-                }
 
                 expr.type_check(env)?;
 
@@ -374,7 +374,7 @@ impl TypeCheck for FunctionDecl {
 
         if final_type != self.return_type {
             return Err(MismatchedTypesError::from_binding(Declaration::Function(self.clone()),
-                                                          self.return_type.clone(),
+                                                          self.return_type.clone().into(),
                                                           final_type,
                                                           self.body_span)
                                .into());

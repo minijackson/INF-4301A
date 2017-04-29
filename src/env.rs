@@ -161,6 +161,13 @@ impl<T> Environment<T> {
                     ]
                 });
 
+        let number_type = Generic::Sum(SumType {
+            possibilities: vec![
+                Integer.into(),
+                Float.into(),
+            ]
+        });
+
         Self {
             scopes: LinkedList::new(),
             builtins: quick_hashmap!(
@@ -184,7 +191,8 @@ impl<T> Environment<T> {
                 ),
 
             types: quick_hashmap!(
-                "Printable" => printable_type
+                "Printable" => printable_type,
+                "Number" => number_type
                 ),
         }
     }
@@ -274,6 +282,10 @@ impl<T> Environment<T> {
              .get_mut(name)
              .expect("No such function")
              .call)(&args)
+    }
+
+    pub fn get_type(&self, name: &str) -> Option<&Generic> {
+        self.types.get(name)
     }
 }
 

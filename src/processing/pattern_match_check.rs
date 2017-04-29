@@ -34,7 +34,7 @@ impl PatternMatchCheck for Expr {
 
             if my_type != rhs_type {
                 // TODO
-                return Err(MismatchedTypesError::new(my_type, rhs_type, Span(0, 0)).into());
+                return Err(MismatchedTypesError::new(my_type.into(), rhs_type, Span(0, 0)).into());
             }
 
             Ok(())
