@@ -236,7 +236,7 @@ VariableDecl: VariableDecl = {
 };
 
 FunctionDecl: FunctionDecl = {
-    <signature_start:@L> "function" <name:Identifier> "(" <args:ArgDecls> ")" ":" <return_type:Type> <signature_end:@R> "=" <body_start:@L> <body:Expression> <body_end:@R>
+    <signature_start:@L> "function" <name:Identifier> "(" <args:ArgDecls> ")" ":" <return_type:Type> <signature_end:@R> ":=" <body_start:@L> <body:Expression> <body_end:@R>
         => FunctionDecl {
             name,
             args,

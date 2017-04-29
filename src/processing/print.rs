@@ -198,7 +198,7 @@ impl Print for FunctionDecl {
             .map(|arg| arg.pretty_print(indent))
             .join(", ");
 
-        format!("{}function {}({}) : {:?} = {}",
+        format!("{}function {}({}) : {:?} := {}",
                 ws,
                 self.name,
                 args,
@@ -214,7 +214,7 @@ impl Print for ArgumentDecl {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::Print;
 
     // Theses tests suppose the parser is correct so we don't have to manually input the AST
@@ -309,7 +309,7 @@ in
 end");
 
         perfect_coding!("let
-  function x(a: Integer, b: Integer) : Integer = (a * b)
+  function x(a: Integer, b: Integer) : Integer := (a * b)
 in
   x(1, 2)
 end");
