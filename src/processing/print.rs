@@ -154,8 +154,22 @@ impl Print for Expr {
                             .join(", "))
             }
 
-            // For strings, use the debug trait to add quotes
-            Value(type_sys::Value::Str(ref value)) => format!("{:?}", value),
+            Value(type_sys::Value::Str(ref value)) => {
+                let string = value.chars().map(|c| {
+                    if c.is_control() {
+                        format!("\\u{:04x}", c as usize)
+                    } else if c == '"' {
+                        "\\\"".to_string()
+                    } else if c == '\\' {
+                        "\\\\".to_string()
+                    } else {
+                        format!("{}", c)
+                    }
+                })
+                .join("");
+
+                format!(r#""{}""#, string)
+            }
 
             Value(ref value) => value.to_string(),
 
@@ -220,16 +234,22 @@ mod tests {
     // Theses tests suppose the parser is correct so we don't have to manually input the AST
     use parser;
 
-    macro_rules! perfect_coding {
-        ( $expr:expr ) => {
-            let expected = $expr;
-            let expr = parser::parse_Expression($expr).unwrap();
+    macro_rules! almost_perfect_coding {
+        ( $input:expr, $output:expr ) => {
+            let expected = $output;
+            let expr = parser::parse_Expression($input).unwrap();
             let result = expr.pretty_print(0);
             assert_eq!(expected, result);
         }
     }
 
-    macro_rules! not_perfect_coding {
+    macro_rules! perfect_coding {
+        ( $expr:expr ) => {
+            almost_perfect_coding!($expr, $expr);
+        }
+    }
+
+    macro_rules! imperfect_coding {
         ( $expr:expr ) => {
             let expected = $expr;
             let expr = parser::parse_Expression($expr).unwrap();
@@ -262,7 +282,7 @@ mod tests {
     #[test]
     fn grouping() {
         // Should not be parsed as a grouping, but as a simple parenthesis
-        not_perfect_coding!("(
+        imperfect_coding!("(
   2
 )");
 
@@ -386,7 +406,7 @@ end");
         perfect_coding!("hello_world");
         perfect_coding!("hello_world2");
         // Should be catched by the parser's unit tests but hey, why not?
-        not_perfect_coding!("hello-world2");
+        imperfect_coding!("hello-world2");
     }
 
     #[test]
@@ -402,6 +422,9 @@ end");
         perfect_coding!("13.37");
         perfect_coding!(r#""hello""#);
         perfect_coding!(r#""hel\"lo""#);
+        perfect_coding!(r#""hel\\lo""#);
+        perfect_coding!(r#""hel\u001flo""#);
+        almost_perfect_coding!(r#""hel\x1flo""#, r#""hel\u001flo""#);
     }
 
 }
