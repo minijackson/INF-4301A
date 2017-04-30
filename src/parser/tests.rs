@@ -726,5 +726,8 @@ fn value() {
     let ast = Box::new(Value(Str("hello".to_string())));
     assert_eq!(parse_Expression(r#""hel\u006Co""#).unwrap(), ast);
 
+    let ast = Box::new(Value(Str("I ♥ Rust".to_string())));
+    assert_eq!(parse_Expression(r#""I \u2665 Rust""#).unwrap(), ast);
+
     assert!(parse_Expression(r#""hel\u""#).is_err());
 }
