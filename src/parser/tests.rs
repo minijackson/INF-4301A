@@ -311,14 +311,49 @@ fn while_block() {
     assert_eq!(parse_Expression("while while true do 42 do while true do 42").unwrap(), ast);
 }
 
-//#[test]
-//fn for_block() {
-    //let ast = Box::new(For {
+#[test]
+fn for_block() {
+    let ast = Box::new(For {
+        binding: Box::new(VariableDecl {
+            name: "x".to_string(),
+            span: Span(4, 14),
+            value: Value(Integer(1)),
+            value_span: Span(13, 14),
+        }),
+        goal: Box::new(Value(Integer(42))),
+        goal_span: Span(18, 20),
+        expr: Box::new(Variable {
+            name: "x".to_string(),
+            span: Span(24, 25),
+        })
+    });
 
-    //});
+    assert_eq!(parse_Expression("for var x := 1 to 42 do x").unwrap(), ast);
 
-    //assert_eq!(parse_Expression("for var x := 1 to 42 do x").unwrap(), ast);
-//}
+    let ast = Box::new(For {
+        binding: Box::new(VariableDecl {
+            name: "x".to_string(),
+            span: Span(4, 16),
+            value: BinaryOp {
+                lhs: Box::new(Value(Integer(3))),
+                rhs: Box::new(Value(Integer(2))),
+                op: BinaryOpCode::Sub,
+                span: Span(13, 16),
+            },
+            value_span: Span(13, 16),
+        }),
+        goal: Box::new(BinaryOp {
+            lhs: Box::new(Value(Integer(6))),
+            rhs: Box::new(Value(Integer(7))),
+            op: BinaryOpCode::Mul,
+            span: Span(20, 23),
+        }),
+        goal_span: Span(20, 23),
+        expr: Box::new(Value(Integer(1))),
+    });
+
+    assert_eq!(parse_Expression("for var x := 3-2 to 6*7 do 1").unwrap(), ast);
+}
 
 #[test]
 fn binary_operator() {
@@ -451,4 +486,245 @@ fn binary_operator() {
     });
 
     assert_eq!(parse_Expression("2+2*2/2 <> 2<2>=2 = 2").unwrap(), ast);
+}
+
+#[test]
+fn unary_operator() {
+    let ast = Box::new(UnaryOp {
+        expr: Box::new(Value(Integer(2))),
+        op: UnaryOpCode::Minus,
+        span: Span(0, 2),
+    });
+
+    assert_eq!(parse_Expression("-2").unwrap(), ast);
+
+    let ast = Box::new(UnaryOp {
+        expr: Box::new(Value(Integer(2))),
+        op: UnaryOpCode::Plus,
+        span: Span(0, 2),
+    });
+
+    assert_eq!(parse_Expression("+2").unwrap(), ast);
+
+    let ast = Box::new(BinaryOp {
+        lhs: Box::new(BinaryOp {
+            lhs: Box::new(Value(Integer(2))),
+            rhs: Box::new(UnaryOp {
+                expr: Box::new(Value(Integer(2))),
+                op: UnaryOpCode::Plus,
+                span: Span(2, 4),
+            }),
+            op: BinaryOpCode::Add,
+            span: Span(0, 4),
+        }),
+        rhs: Box::new(Value(Integer(2))),
+        op: BinaryOpCode::Add,
+        span: Span(0, 6),
+    });
+
+    assert_eq!(parse_Expression("2++2+2").unwrap(), ast);
+
+    let ast = Box::new(BinaryOp {
+        lhs: Box::new(BinaryOp {
+            lhs: Box::new(Value(Integer(2))),
+            rhs: Box::new(UnaryOp {
+                expr: Box::new(Value(Integer(2))),
+                op: UnaryOpCode::Minus,
+                span: Span(2, 4),
+            }),
+            op: BinaryOpCode::Add,
+            span: Span(0, 4),
+        }),
+        rhs: Box::new(Value(Integer(2))),
+        op: BinaryOpCode::Add,
+        span: Span(0, 6),
+    });
+
+    assert_eq!(parse_Expression("2+-2+2").unwrap(), ast);
+}
+
+#[test]
+fn cast() {
+    let ast = Box::new(Cast {
+        expr: Box::new(Value(Integer(42))),
+        expr_span: Span(0, 2),
+        dest: Type::Float
+    });
+
+    assert_eq!(parse_Expression("42 as Float").unwrap(), ast);
+
+    let ast = Box::new(BinaryOp {
+        lhs: Box::new(Value(Integer(2))),
+        rhs: Box::new(Cast {
+            expr: Box::new(Value(Integer(42))),
+            expr_span: Span(4, 6),
+            dest: Type::Float
+        }),
+        op: BinaryOpCode::Add,
+        span: Span(0, 15),
+    });
+
+    assert_eq!(parse_Expression("2 + 42 as Float").unwrap(), ast);
+
+    let ast = Box::new(Cast {
+        expr: Box::new(BinaryOp {
+            lhs: Box::new(Value(Integer(2))),
+            rhs: Box::new(Value(Integer(42))),
+            op: BinaryOpCode::Add,
+            span: Span(1, 7),
+        }),
+        expr_span: Span(0, 8),
+        dest: Type::Float
+    });
+
+    assert_eq!(parse_Expression("(2 + 42) as Float").unwrap(), ast);
+
+    let ast = Box::new(Cast {
+        expr: Box::new(Value(Integer(1))),
+        expr_span: Span(0, 1),
+        dest: Type::Array(Box::new(Type::Array(Box::new(Type::Integer)))),
+    });
+
+    assert_eq!(parse_Expression("1 as Array(Array(Integer))").unwrap(), ast);
+
+    let ast = Box::new(Cast {
+        expr: Box::new(Value(Integer(1))),
+        expr_span: Span(0, 1),
+        dest: Type::Tuple(vec![Type::Array(Box::new(Type::Integer)), Type::Tuple(vec![Type::Integer, Type::Bool])]),
+    });
+
+    assert_eq!(parse_Expression("1 as Tuple(Array(Integer), Tuple(Integer, Bool))").unwrap(), ast);
+}
+
+#[test]
+fn variable() {
+    let ast = Box::new(Variable {
+        name: "x".to_string(),
+        span: Span(0, 1),
+    });
+
+    assert_eq!(parse_Expression("x").unwrap(), ast);
+
+    let ast = Box::new(Variable {
+        name: "x_y".to_string(),
+        span: Span(0, 3),
+    });
+
+    assert_eq!(parse_Expression("x_y").unwrap(), ast);
+
+    assert!(parse_Expression("2x").is_err());
+}
+
+#[test]
+fn array() {
+    let ast = Box::new(Array {
+        values: vec![],
+        declared_type: None,
+        declared_type_span: None,
+        span: Span(0, 2),
+    });
+
+    assert_eq!(parse_Expression("[]").unwrap(), ast);
+
+    let ast = Box::new(Array {
+        values: vec![(Box::new(Value(Integer(1))), Span(1, 2)), (Box::new(Value(Integer(2))), Span(4, 5))],
+        declared_type: None,
+        declared_type_span: None,
+        span: Span(0, 6),
+    });
+
+    assert_eq!(parse_Expression("[1, 2]").unwrap(), ast);
+
+    let ast = Box::new(Array {
+        values: vec![(Box::new(Value(Integer(1))), Span(8, 9)), (Box::new(Value(Integer(2))), Span(11, 12))],
+        declared_type: Some(Type::Integer),
+        declared_type_span: Some(Span(0, 7)),
+        span: Span(0, 13),
+    });
+
+    assert_eq!(parse_Expression("Integer[1, 2]").unwrap(), ast);
+
+    let ast = Box::new(Array {
+        values: vec![(Box::new(Array {
+            values: vec![],
+            declared_type: None,
+            declared_type_span: None,
+            span: Span(1, 3),
+        }), Span(1, 3))],
+        declared_type: None,
+        declared_type_span: None,
+        span: Span(0, 4),
+    });
+
+    assert_eq!(parse_Expression("[[]]").unwrap(), ast);
+}
+
+#[test]
+fn tuple() {
+    let ast = Box::new(Tuple(vec![]));
+
+    assert_eq!(parse_Expression("{}").unwrap(), ast);
+
+    let ast = Box::new(Tuple(vec![Box::new(Value(Integer(42))), Box::new(Value(Integer(69)))]));
+
+    assert_eq!(parse_Expression("{42, 69}").unwrap(), ast);
+
+    let ast = Box::new(Tuple(vec![Box::new(BinaryOp {
+        lhs: Box::new(Value(Integer(2))),
+        rhs: Box::new(Value(Integer(2))),
+        span: Span(1, 6),
+        op: BinaryOpCode::Add,
+    })]));
+
+    assert_eq!(parse_Expression("{2 + 2}").unwrap(), ast);
+
+    let ast = Box::new(Tuple(vec![Box::new(Tuple(vec![Box::new(Value(Integer(2)))])), Box::new(Value(Bool(false)))]));
+
+    assert_eq!(parse_Expression("{{2}, false}").unwrap(), ast);
+}
+
+#[test]
+fn value() {
+    let ast = Box::new(Value(Integer(42)));
+    assert_eq!(parse_Expression("42").unwrap(), ast);
+
+    // Does not fit in a 64 bit integer type
+    assert!(parse_Expression("10000000000000000000000000000000").is_err());
+
+    let ast = Box::new(Value(Float(13.37)));
+    assert_eq!(parse_Expression("13.37").unwrap(), ast);
+
+    let ast = Box::new(Value(Float(69f64)));
+    assert_eq!(parse_Expression("69.").unwrap(), ast);
+
+    let ast = Box::new(Value(Bool(true)));
+    assert_eq!(parse_Expression("true").unwrap(), ast);
+
+    let ast = Box::new(Value(Bool(false)));
+    assert_eq!(parse_Expression("false").unwrap(), ast);
+
+    let ast = Box::new(Value(Str("hello".to_string())));
+    assert_eq!(parse_Expression(r#""hello""#).unwrap(), ast);
+
+    let ast = Box::new(Value(Str(r#"hel"lo"#.to_string())));
+    assert_eq!(parse_Expression(r#""hel\"lo""#).unwrap(), ast);
+
+    let ast = Box::new(Value(Str(r#"hel"lo"#.to_string())));
+    assert_eq!(parse_Expression(r#""hel\"lo""#).unwrap(), ast);
+
+    let ast = Box::new(Value(Str("hello".to_string())));
+    assert_eq!(parse_Expression(r#""hel\x6co""#).unwrap(), ast);
+
+    let ast = Box::new(Value(Str("hello".to_string())));
+    assert_eq!(parse_Expression(r#""hel\x6Co""#).unwrap(), ast);
+
+    assert!(parse_Expression(r#""hel\x""#).is_err());
+
+    let ast = Box::new(Value(Str("hello".to_string())));
+    assert_eq!(parse_Expression(r#""hel\u006co""#).unwrap(), ast);
+
+    let ast = Box::new(Value(Str("hello".to_string())));
+    assert_eq!(parse_Expression(r#""hel\u006Co""#).unwrap(), ast);
+
+    assert!(parse_Expression(r#""hel\u""#).is_err());
 }
