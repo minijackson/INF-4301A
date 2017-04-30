@@ -292,13 +292,24 @@ Literal: Box<Expr> = {
                         )
                     )
                  ),
-    r#""(?:[^"\\]|\\.)*""# => {
-        let mut val = <>.to_string();
+    <start:@L> <val:r#""(?:[^"\\]|\\.)*""#> <end:@R> =>? {
+        let mut val = val.to_string();
         // Remove quotes
         val.remove(0);
         val.pop();
-        let val = type_sys::unescape_str(&val);
-        Box::new(Expr::Value(type_sys::Value::Str(val)))
+
+        type_sys::unescape_str(&val)
+            .map_err(|id| {
+                ParseError::User {
+                    error: UserParseError::InvalidStringEscapeSequence {
+                        sequence_id: id,
+                        span: Span(start, end),
+                    }
+                }
+            })
+            .map(type_sys::Value::Str)
+            .map(Expr::Value)
+            .map(Box::new)
     },
     "true"  => Box::new(Expr::Value(type_sys::Value::Bool(true))),
     "false" => Box::new(Expr::Value(type_sys::Value::Bool(false))),

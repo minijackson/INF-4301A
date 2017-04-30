@@ -528,7 +528,15 @@ impl fmt::Display for MismatchedTypesError {
         match self.expected {
             Builtin(ref type_) => write!(f, "`{:?}`", type_)?,
             Abstract(ref type_) => write!(f, "abstract type `{:?}`", type_)?,
-            Sum(ref type_) => write!(f, "either {}", type_.possibilities.iter().map(|possibility| format!("`{:?}`", possibility)).join(","))?,
+            Sum(ref type_) => {
+                write!(f,
+                       "either {}",
+                       type_
+                           .possibilities
+                           .iter()
+                           .map(|possibility| format!("`{:?}`", possibility))
+                           .join(","))?
+            }
             Named(ref name) => write!(f, "generic type `{}`", name)?,
             Any => unreachable!("Any type pattern not satisfied"),
         }
@@ -839,6 +847,7 @@ impl<'a> Error for ParseError<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum UserParseError {
     IntegerOverflow { span: Span },
+    InvalidStringEscapeSequence { sequence_id: char, span: Span },
 }
 
 impl Hint for UserParseError {
@@ -849,6 +858,7 @@ impl Hint for UserParseError {
                  type_: HinterType::Error,
                  span: match *self {
                      IntegerOverflow { span } => span,
+                     InvalidStringEscapeSequence { span, .. } => span,
                  },
                  message: "inputted here".to_string(),
              }]
@@ -859,11 +869,12 @@ impl fmt::Display for UserParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::UserParseError::*;
 
-        write!(f,
-               "{}",
-               match *self {
-                   IntegerOverflow { .. } => "Integer overflow",
-               })
+        match *self {
+            IntegerOverflow { .. } => write!(f, "Integer overflow"),
+            InvalidStringEscapeSequence { sequence_id, .. } => {
+                write!(f, "Invalid escape sequence usage for `\\{}`", sequence_id)
+            }
+        }
     }
 }
 

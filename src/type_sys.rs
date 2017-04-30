@@ -362,7 +362,7 @@ impl Match for SumType {
     }
 }
 
-pub fn unescape_str(input: &str) -> String {
+pub fn unescape_str(input: &str) -> Result<String, char> {
     let mut res = String::with_capacity(input.len());
 
     let mut chars = input.chars();
@@ -373,14 +373,22 @@ pub fn unescape_str(input: &str) -> String {
                  } else {
                      match chars.next() {
                          Some('x') => {
+                             if chars.clone().by_ref().count() < 2 {
+                                 return Err('x');
+                             }
+
                              chars
                                  .by_ref()
                                  .take(2)
                                  .fold(0u8,
                                        |acc, c| acc * 16 + c.to_digit(16).unwrap() as u8) as
-                             char
+                                 char
                          }
                          Some('u') => {
+                             if chars.clone().by_ref().count() < 4 {
+                                 return Err('u');
+                             }
+
                              let val = chars
                                  .by_ref()
                                  .take(4)
@@ -396,5 +404,5 @@ pub fn unescape_str(input: &str) -> String {
                  });
     }
 
-    res
+    Ok(res)
 }
