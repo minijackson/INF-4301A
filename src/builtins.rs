@@ -20,19 +20,9 @@ macro_rules! define_arit_operator {
 
 macro_rules! define_cmp_operator {
     ( $symbol:tt, $func_name:ident) => {
-
         pub fn $func_name(args: &[Value]) -> Value {
-            match (&args[0], &args[1]) {
-                (&Integer(lhs), &Integer(rhs)) => Bool(lhs $symbol rhs),
-                (&Float(lhs), &Float(rhs)) => Bool(lhs $symbol rhs),
-                (&Str(ref lhs), &Str(ref rhs)) => Bool(lhs $symbol rhs),
-                (lhs, rhs) => unreachable!("Wrong type of arguments in `{}`: {:?}, {:?}",
-                                           stringify!($func_name),
-                                           lhs,
-                                           rhs)
-            }
+            Bool(args[0] $symbol args[1])
         }
-
     }
 }
 

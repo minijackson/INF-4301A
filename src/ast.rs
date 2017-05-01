@@ -182,7 +182,8 @@ pub struct FunctionDecl {
 
 impl FunctionDecl {
     pub fn return_type(&self, arg_types: &[type_sys::Type]) -> Option<&type_sys::Type> {
-        if arg_types
+        if self.args.len() == arg_types.len() &&
+           arg_types
                .iter()
                .zip(&self.args)
                .all(|(type_got, &ArgumentDecl { ref type_, .. })| type_got == type_) {

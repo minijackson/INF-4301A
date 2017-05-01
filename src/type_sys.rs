@@ -1,9 +1,7 @@
-use ast::Span;
-use error::ConversionError;
-
 use itertools::Itertools;
 
 use std::char;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -19,6 +17,15 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn may_truthy(&self) -> bool {
+        use self::Type::*;
+
+        match *self {
+            Integer | Float | Bool | Array(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_convertible_to(&self, dest: &Type) -> bool {
         use self::Type::*;
 
@@ -124,21 +131,14 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn truthy(&self) -> Result<bool, ConversionError> {
+    pub fn truthy(&self) -> bool {
         use self::Value::*;
 
         match *self {
-            Integer(0) | Float(0f64) | Bool(false) => Ok(false),
-            Integer(_) | Float(_) | Bool(true) => Ok(true),
-            Array { ref values, .. } => Ok(values.len() != 0),
-            // TODO
-            Str(_) => Err(ConversionError::new(Type::Str, Type::Bool, Span(0, 0))),
-            Tuple { ref element_types, .. } => {
-                Err(ConversionError::new(Type::Tuple(element_types.clone()),
-                                         Type::Bool,
-                                         Span(0, 0)))
-            }
-            Void => Err(ConversionError::new(Type::Void, Type::Bool, Span(0, 0))),
+            Integer(0) | Float(0f64) | Bool(false) => false,
+            Integer(_) | Float(_) | Bool(true) => true,
+            Array { ref values, .. } => values.len() != 0,
+            _ => panic!("Invalid value truthy-checked"),
         }
     }
 
@@ -268,6 +268,23 @@ impl Value {
     }
 }
 
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        use self::Value::*;
+
+        match (self, other) {
+            (&Void, &Void) => None,
+            (&Integer(lhs), &Integer(rhs)) => lhs.partial_cmp(&rhs),
+            (&Float(lhs), &Float(rhs)) => lhs.partial_cmp(&rhs),
+            (&Bool(lhs), &Bool(rhs)) => lhs.partial_cmp(&rhs),
+            (&Str(ref lhs), &Str(ref rhs)) => lhs.partial_cmp(rhs),
+            (&Array { values: ref lhs, .. }, &Array { values: ref rhs, .. }) => lhs.partial_cmp(rhs),
+            (&Tuple { values: ref lhs, .. }, &Tuple { values: ref rhs, .. }) => lhs.partial_cmp(rhs),
+            _ => None,
+        }
+    }
+}
+
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Value::*;
@@ -333,6 +350,7 @@ impl From<Type> for Generic {
 #[derive(Debug,Clone,PartialEq,Eq,Hash)]
 pub enum AbstractType {
     Array(Box<Generic>),
+    Tuple(Box<Generic>),
 }
 
 impl Match for AbstractType {
@@ -342,6 +360,11 @@ impl Match for AbstractType {
         match (self, given_type) {
             (&Array(ref el_type), &Type::Array(ref given_el_type)) => {
                 (*el_type).match_with(&*given_el_type, types)
+            }
+            (&Tuple(ref el_type), &Type::Tuple(ref given_el_types)) => {
+                given_el_types.iter().all(|given_type| {
+                    (*el_type).match_with(&*given_type, types)
+                })
             }
             _ => false,
         }

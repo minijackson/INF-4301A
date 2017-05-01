@@ -180,7 +180,13 @@ impl Hint for AlreadyDeclaredError {
 
 impl fmt::Display for AlreadyDeclaredError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "variable `{}` was already declared", self.name)
+        write!(f, "{} `{}` was already declared",
+               match self.orig_declaration {
+                   Declaration::Variable(_) => "variable",
+                   Declaration::Function(_) => "function",
+                   Declaration::Argument(_) => "argument",
+               },
+               self.name)
     }
 }
 

@@ -50,6 +50,10 @@ impl BuiltinInfo {
         self.signatures
             .iter()
             .find(|&(params, _)| {
+                      if arg_types.len() != params.len() {
+                          return false;
+                      }
+
                       params
                           .iter()
                           .zip(arg_types)
@@ -140,6 +144,16 @@ impl<T> Environment<T> {
                     vec![Float.into(), Float.into()] => Float
                     );
 
+        let comparable_type = Generic::Sum(SumType {
+            possibilities: vec![
+                Integer.into(),
+                Float.into(),
+                Bool.into(),
+                Str.into(),
+                Generic::Abstract(AbstractType::Array(Box::new(Generic::Named("Comparable".to_string())))),
+            ]
+        });
+
         let cmp_sig = quick_hashmap!(
                     vec![Integer.into(), Integer.into()] => Bool,
                     vec![Float.into(), Float.into()] => Bool,
@@ -196,6 +210,7 @@ impl<T> Environment<T> {
 
             types: quick_hashmap!(
                 "Printable" => printable_type,
+                "Comparable" => comparable_type,
                 "Number" => number_type
                 ),
         }

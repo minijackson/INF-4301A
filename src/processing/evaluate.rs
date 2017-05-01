@@ -120,7 +120,7 @@ impl Evaluate for Expr {
                 ref false_branch,
                 ..
             } => {
-                if cond.evaluate(env).truthy().unwrap() {
+                if cond.evaluate(env).truthy() {
                     true_branch.evaluate(env)
                 } else {
                     false_branch.evaluate(env)
@@ -132,7 +132,7 @@ impl Evaluate for Expr {
                 ref expr,
                 ..
             } => {
-                while cond.evaluate(env).truthy().unwrap() {
+                while cond.evaluate(env).truthy() {
                     expr.evaluate(env);
                 }
                 type_sys::Value::Void
