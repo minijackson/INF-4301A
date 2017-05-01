@@ -12,6 +12,11 @@ impl PatternMatch for Expr {
         use ast::Expr::*;
 
         match *self {
+            // This should not set the value but pin the value to ensure subsequent use of the same
+            // variable must have the same value (Prolog / Erlang style), and then assign variables
+            // if everything matches, not saving the environment and restore it if the pattern does
+            // not match (NOT elegant), but hey, time is missing, I even file like I won't finish
+            // this sent...
             Variable { ref name, .. } => {
                 let assign = Expr::Assign {
                     name: name.clone(),
@@ -63,6 +68,7 @@ mod tests {
     use parser;
     use processing::{Evaluate, TypeCheck};
     use type_sys::Value::*;
+    use type_sys::Type;
 
     macro_rules! assert_result {
 
@@ -78,10 +84,65 @@ mod tests {
     }
 
     #[test]
+    fn value() {
+        assert_result!("match 1 := 1", Bool(true));
+        assert_result!("match 0 := 1", Bool(false));
+        assert_result!("match 2.5 := 2.5", Bool(true));
+        assert_result!("match 2 := 1 + 1", Bool(true));
+        // Float: oops!
+        //assert_result!("match 0.6 := 0.1 + 0.2 + 0.3", Bool(true));
+        assert_result!(r#"match "hello" := "hello""#, Bool(true));
+        assert_result!(r#"match "hello" := "world""#, Bool(false));
+
+        assert_result!("let var x := 0 in match x := 42, x end", Integer(42));
+        assert_result!(r#"let var x := "" in match x := "hello", x end"#, Str("hello".to_string()));
+    }
+
+    #[test]
     fn array() {
+        assert_result!("match Integer[] := Integer[]", Bool(true));
+        assert_result!("match [1] := [1]", Bool(true));
+        assert_result!("match [1] := [2]", Bool(false));
         assert_result!("let var x := 1 in match [x] := [42], x end", Integer(42));
         assert_result!("let var x := 1 in match [x, 1] := [42], x end", Integer(1));
         assert_result!("let var x := 1 in match [x, 1] := [42, 2], x end", Integer(1));
+        assert_result!("let var x := false in match [x, false] := [true, false], x end", Bool(true));
+        assert_result!("let var x := false in match [x, false] := [true, true], x end", Bool(false));
+    }
+
+    #[test]
+    fn tuple() {
+        assert_result!("let var x := 1 in match [x] := [42], x end", Integer(42));
+        assert_result!("let var x := 1 in match [x, 1] := [42], x end", Integer(1));
+        assert_result!("let var x := 1 in match [x, 1] := [42, 2], x end", Integer(1));
+    }
+
+    #[test]
+    fn megamix() {
+        assert_result!("match [{}] := [{}]", Bool(true));
+        assert_result!("match [{2, 3}, {4, 5}] := [{1 + 1, 6 / 2}, {4., 5} as Tuple(Integer, Integer)]", Bool(true));
+        assert_result!(r#"let
+                          function make_thingy(x: Integer, y: Float): Tuple(Integer, Float) := {x + 40, y * 3.}
+                          var x := {0, 0.}
+                       in
+                          match {[x, {5, 6.}], "hello"} := {[make_thingy(2, 23.), make_thingy(-35, 2.)], "hello"},
+                          x,
+                       end"#,
+                       Tuple {
+                           element_types: vec![Type::Integer, Type::Float],
+                           values: vec![Integer(42), Float(69f64)],
+                       });
+        assert_result!(r#"let
+                          function make_thingy(x: Integer, y: Float): Tuple(Integer, Float) := {x + 40, y * 3.}
+                          var x := {0, 0.}
+                       in
+                          match {[x, {5, 6.}], "hello"} := {[make_thingy(2, 23.), make_thingy(-35, 2.)], "world"},
+                          x,
+                       end"#,
+                       Tuple {
+                           element_types: vec![Type::Integer, Type::Float],
+                           values: vec![Integer(0), Float(0f64)],
+                       });
     }
 
 }
