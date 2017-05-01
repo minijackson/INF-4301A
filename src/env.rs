@@ -8,11 +8,12 @@ use std::collections::hash_map::Entry;
 
 pub struct Environment<T> {
     // TODO: change that abomination of a LinkedList
-    scopes: LinkedList<Scope<T>>,
+    pub scopes: LinkedList<Scope<T>>,
     builtins: HashMap<&'static str, BuiltinInfo>,
     pub types: HashMap<&'static str, Generic>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Scope<T> {
     pub variables: HashMap<String, BindingInfo<T>>,
     pub functions: HashMap<String, FunctionDecl>,
@@ -58,6 +59,7 @@ impl BuiltinInfo {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum BindingInfo<T> {
     Variable { declaration: VariableDecl, info: T },
     Argument { declaration: ArgumentDecl, info: T },
@@ -107,8 +109,10 @@ impl BindingInfo<ValueInfo> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypeInfo(pub Type);
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ValueInfo(pub Value);
 
 impl<T> Environment<T> {

@@ -63,7 +63,15 @@ impl Evaluate for Expr {
                 ref rhs,
                 ..
             } => {
-                type_sys::Value::Bool(lhs.pattern_match(&rhs.evaluate(env), env))
+                let var_save = env.scopes.clone();
+
+                let res = lhs.pattern_match(&rhs.evaluate(env), env);
+
+                if !res {
+                    env.scopes = var_save;
+                }
+
+                type_sys::Value::Bool(res)
             }
 
             Function {
