@@ -20,8 +20,10 @@ impl Print for Expr {
             Grouping(ref exprs) => {
                 let mut fmt_exprs = exprs.pretty_print(indent + 2);
 
-                // Add a comma for single expr grouping
-                if exprs.exprs.len() == 1 {
+                if exprs.exprs.len() == 0 {
+                    return "()".to_string();
+                } else if exprs.exprs.len() == 1 {
+                    // Add a comma for single expr grouping
                     fmt_exprs.pop();
                     fmt_exprs += ",\n";
                 }
@@ -285,6 +287,8 @@ mod tests {
         imperfect_coding!("(
   2
 )");
+
+        perfect_coding!("()");
 
         // To resolve the ambiguity, simply add a comma at the end (Rust's tuples style)
         //

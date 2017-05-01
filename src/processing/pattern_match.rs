@@ -56,3 +56,32 @@ impl PatternMatch for Expr {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use env::Environment;
+    use parser;
+    use processing::{Evaluate, TypeCheck};
+    use type_sys::Value::*;
+
+    macro_rules! assert_result {
+
+        ( $expr:expr, $expected:expr ) => {
+            let mut ast = parser::parse_Expression($expr)
+                .unwrap();
+            // The type checker might modify the AST a bit before the evaluation
+            ast.type_check(&mut Environment::new()).unwrap();
+            let res = ast.evaluate(&mut Environment::new());
+            assert_eq!(res, $expected);
+        }
+
+    }
+
+    #[test]
+    fn array() {
+        assert_result!("let var x := 1 in match [x] := [42], x end", Integer(42));
+        assert_result!("let var x := 1 in match [x, 1] := [42], x end", Integer(1));
+        assert_result!("let var x := 1 in match [x, 1] := [42, 2], x end", Integer(1));
+    }
+
+}

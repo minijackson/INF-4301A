@@ -12,7 +12,7 @@ run: release
 	cargo build
 
 check: cargo
-	cargo test
+	cargo test --bin inf_4301a
 
 cargo:
 	./rust_installer.sh

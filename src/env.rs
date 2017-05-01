@@ -144,20 +144,12 @@ impl<T> Environment<T> {
                     vec![Float.into(), Float.into()] => Float
                     );
 
-        let comparable_type = Generic::Sum(SumType {
-            possibilities: vec![
-                Integer.into(),
-                Float.into(),
-                Bool.into(),
-                Str.into(),
-                Generic::Abstract(AbstractType::Array(Box::new(Generic::Named("Comparable".to_string())))),
-            ]
-        });
-
+        // Not exactly correct: the two parameters are not guaranteed to be of the same type.
+        //
+        // This will result in that any comparison with objects of different types will always
+        // return `false`. I would prefer a type error.
         let cmp_sig = quick_hashmap!(
-                    vec![Integer.into(), Integer.into()] => Bool,
-                    vec![Float.into(), Float.into()] => Bool,
-                    vec![Str.into(), Str.into()] => Bool
+                    vec![Generic::Named("Comparable".to_string()), Generic::Named("Comparable".to_string())] => Bool
                     );
 
         let unary_sig = quick_hashmap!(
@@ -169,6 +161,13 @@ impl<T> Environment<T> {
                     vec![Generic::Any] => Void
                     );
 
+        let number_type = Generic::Sum(SumType {
+            possibilities: vec![
+                Integer.into(),
+                Float.into(),
+            ]
+        });
+
         let printable_type = Generic::Sum(SumType {
                     possibilities: vec![
                         Integer.into(),
@@ -179,10 +178,13 @@ impl<T> Environment<T> {
                     ]
                 });
 
-        let number_type = Generic::Sum(SumType {
+        let comparable_type = Generic::Sum(SumType {
             possibilities: vec![
                 Integer.into(),
                 Float.into(),
+                Bool.into(),
+                Str.into(),
+                Generic::Abstract(AbstractType::Array(Box::new(Generic::Named("Comparable".to_string())))),
             ]
         });
 

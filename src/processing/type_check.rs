@@ -437,6 +437,7 @@ mod tests {
             if func_name == "+"
             );
 
+        assert_type!("()", Void);
         assert_type!("(1, 2)", Integer);
         assert_type!("(true, 2)", Integer);
     }
@@ -461,7 +462,7 @@ mod tests {
                     if func_name == "+");
 
         assert_err!("let
-                        var x := while 1 do 1
+                        var x := while true do ()
                     in
                     end",
                     TypeCheckError::VoidVarDeclaration(VoidVarDeclartionError { ref name, ..  })
@@ -540,7 +541,7 @@ mod tests {
                     if name == "x");
 
         assert_err!("let
-                        function x(): Bool := true
+                        function x(): Void := ()
                     in
                         x := 42
                     end",
@@ -677,13 +678,14 @@ mod tests {
 
     #[test]
     fn while_block() {
-        assert_err!("while 2+3.4 do 1",
+        assert_err!("while 2+3.4 do ()",
                     TypeCheckError::NoSuchSignature(NoSuchSignatureError { ref func_name, .. })
                     if func_name == "+");
         assert_err!("while true do 2+3.4",
                     TypeCheckError::NoSuchSignature(NoSuchSignatureError { ref func_name, .. })
                     if func_name == "+");
 
+        assert_type!("while true do ()", Void);
         assert_type!("while true do true", Void);
         assert_type!("while true do 1", Void);
         assert_type!("while 1 do 1", Void);
@@ -699,26 +701,27 @@ mod tests {
 
     #[test]
     fn for_block() {
-        assert_err!("for var x := 2+3.4 to 10 do x",
+        assert_err!("for var x := 2+3.4 to 10 do ()",
                     TypeCheckError::NoSuchSignature(NoSuchSignatureError { ref func_name, .. })
                     if func_name == "+");
-        assert_err!("for var x := 1 to 2+3.4 do x",
+        assert_err!("for var x := 1 to 2+3.4 do ()",
                     TypeCheckError::NoSuchSignature(NoSuchSignatureError { ref func_name, .. })
                     if func_name == "+");
         assert_err!("for var x := 1 to 10 do 2+3.4",
                     TypeCheckError::NoSuchSignature(NoSuchSignatureError { ref func_name, .. })
                     if func_name == "+");
 
+        assert_type!("for var x := 1 to 10 do ()", Void);
         assert_type!("for var x := 1 to 10 do 1", Void);
         assert_type!("for var x := 1 to 10 do x", Void);
 
-        assert_err!("for var x := 1.5 to 10 do x",
+        assert_err!("for var x := 1.5 to 10 do ()",
                     TypeCheckError::MismatchedTypes(MismatchedTypesError {
                         expected: Generic::Builtin(Integer),
                         got: Float,
                         ..
                     }));
-        assert_err!("for var x := 1 to 1.5 do x",
+        assert_err!("for var x := 1 to 1.5 do ()",
                     TypeCheckError::MismatchedTypes(MismatchedTypesError {
                         expected: Generic::Builtin(Integer),
                         got: Float,

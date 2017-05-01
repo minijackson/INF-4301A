@@ -194,6 +194,7 @@ pub Factor: Box<Expr> = {
     Tuple<Expression>,
     Literal,
     "(" <Expression> ")" => <>,
+    "(" ")" => Box::new(Expr::Grouping(Exprs { exprs: vec![] })),
     "(" <expr:Expression> "," <exprs:Expressions> ")" => {
         let mut exprs = exprs;
         exprs.exprs.insert(0, expr);
