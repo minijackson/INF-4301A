@@ -1,7 +1,7 @@
 [package]
 name = "inf_4301a"
 version = "0.1.0"
-authors = ["Minijackson <minijackson@riseup.net>"]
+authors = ["Minijackson <minijackson@riseup.net>", "Pitsoker <mr.jekyll.hyde6@gmail.com>"]
 build = "build.rs"
 
 [build-dependencies]
