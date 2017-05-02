@@ -14,6 +14,7 @@ Ce qui est fait
 	- make
 	- make check
 	- make run (run en mode release)
+	- make doc (génère de la doc html dans target/doc/inf_4301a/index.html)
 	- Propose l'installation de Rust
 - Arithmétique et comparaisons
 - Print
