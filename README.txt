@@ -47,6 +47,8 @@ Originalités
 - En Rust
 - Un joli REPL avec le support du multiligne et de la complétion
 - Des jolies erreurs qui pointent sur le code
+- Un fuzzer est installé: pour l'exécuter, faites simplement
+  `cargo fuzz run --release fuzzer_script_1`
 
 Limitations
 -----------
@@ -56,3 +58,8 @@ Limitations
   de programmation)
 - La complétion n'est pas parfaite (requiert que le le code partiel ne soit
   pas valide en terme de parsing)
+- Le programme ne gère pas les erreurs à l'évaluation (en dehors du type
+  checker), ce qui fait que les erreurs de type division par zéro, overflow,
+  etc. font planter directement le programme, et que par exemple parser une
+  string pour la convertir en Integer, Bool, etc. n'est pour l'instant pas
+  possible.
