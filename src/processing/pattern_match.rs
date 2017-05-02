@@ -1,8 +1,11 @@
+//! The module where the pattern matching is implemented
+
 use ast::*;
 use env::{Environment, ValueInfo};
 use processing::Evaluate;
 use type_sys;
 
+/// That trait that must be implemented by part of the AST for pattern matching
 pub trait PatternMatch {
     fn pattern_match(&self, rhs: &type_sys::Value, env: &mut Environment<ValueInfo>) -> bool;
 }

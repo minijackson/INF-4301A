@@ -7,6 +7,7 @@ use error::{ArrayTypeDecl, ConversionError, IncompatibleArmTypesError,
 use processing::pattern_match_check::PatternMatchCheck;
 use type_sys::Type;
 
+/// That trait that must be implemented by part of the AST for type checking
 pub trait TypeCheck {
     fn type_check(&mut self, env: &mut Environment<TypeInfo>) -> Result<Type, TypeCheckError>;
 }

@@ -3,6 +3,7 @@ use type_sys;
 
 use itertools::Itertools;
 
+/// That trait that must be implemented by part of the AST for pretty printing
 pub trait Print {
     fn pretty_print(&self, indent: usize) -> String;
 }

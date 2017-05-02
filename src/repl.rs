@@ -1,3 +1,5 @@
+//! The REPL
+
 use super::{do_the_thing, parse_expressions};
 
 use ast;
@@ -14,6 +16,13 @@ use rustyline::completion::{extract_word, Completer};
 
 use std::collections::BTreeSet;
 
+/// Start the REPL
+///
+/// This will load and save the history in a file named `history.txt` in the current directory.
+///
+/// Note: Multiline support!
+///
+/// Note: Smart completion support! (not perfect)
 pub fn start() {
     let mut rl = Editor::<ParseCompleter>::new();
 
@@ -70,6 +79,9 @@ pub fn start() {
     }
 }
 
+/// The loop that keep asking for input until the expression is completed
+///
+/// This is done by looping while the parser returns an error of type "I needed something more"
 fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
                       mut partial_input: &'a mut String)
                       -> (&'a String, Result<ast::Exprs, REPLError<'a>>) {
@@ -110,14 +122,17 @@ fn multiline_loop<'a>(mut rl: &mut Editor<ParseCompleter>,
 //== Completion ==
 //================
 
+/// The break chars for the completion
 const BREAKS: [char; 12] = [' ', '\t', '\n', '(', ')', ',', '+', '-', '*', '/', '<', '>'];
 
+/// The structure that provides completion that will be given to the rustyline library
 struct ParseCompleter {
     context: String,
     breaks: BTreeSet<char>,
 }
 
 impl ParseCompleter {
+    /// Create a new completer
     pub fn new() -> Self {
         ParseCompleter {
             context: "".to_string(),
@@ -125,6 +140,8 @@ impl ParseCompleter {
         }
     }
 
+    /// Create a new completer from the given context (partial user input from the previous
+    /// multiline inputs)
     pub fn from_context(context: String) -> Self {
         ParseCompleter {
             context: context,

@@ -14,7 +14,10 @@ run: release
 check: cargo
 	cargo test --bin inf_4301a
 
+doc: cargo
+	cargo doc
+
 cargo:
 	./rust_installer.sh
 
-.PHONY: release debug check cargo
+.PHONY: release debug check doc cargo

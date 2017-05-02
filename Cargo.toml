@@ -14,3 +14,11 @@ regex = "0.2"
 rustyline = "1.0.0"
 itertools = "0.5.9"
 term = "0.4.5"
+
+[lib]
+name = "compilib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "inf_4301a"
+path = "src/main.rs"

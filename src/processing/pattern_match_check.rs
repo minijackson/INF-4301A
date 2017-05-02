@@ -1,8 +1,11 @@
+//! The module where the pattern match type checking is implemented
+
 use ast::*;
 use env::{Environment, TypeInfo};
 use error::{TypeCheckError, MismatchedTypesError};
 use processing::TypeCheck;
 
+/// That trait that must be implemented by the part of the AST for pattern match type checking
 pub trait PatternMatchCheck: TypeCheck {
     fn check_match(&mut self,
                    rhs: &mut Self,

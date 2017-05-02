@@ -1,3 +1,7 @@
+//! Where all the builtins are defined (Rust code-wise)
+//!
+//! This includes print / println functions, binary / unary operators...
+
 use type_sys::Value;
 use type_sys::Value::*;
 

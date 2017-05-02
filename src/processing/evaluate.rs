@@ -3,6 +3,7 @@ use type_sys::Value;
 use env::{Environment, BindingInfo, ValueInfo};
 use processing::pattern_match::PatternMatch;
 
+/// That trait that must be implemented by part of the AST for evaluation
 pub trait Evaluate {
     fn evaluate(&self, env: &mut Environment<ValueInfo>) -> Value;
 }

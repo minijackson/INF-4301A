@@ -1,3 +1,8 @@
+//! The type system
+//!
+//! This module enumerates the available types, the values ("runtime typed" containers) and
+//! functions that manipulate these types / values.
+
 use itertools::Itertools;
 
 use std::char;
@@ -5,18 +10,27 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 
+/// A Type (really?!)
 #[derive(Clone,PartialEq,Eq,Hash)]
 pub enum Type {
+    /// The Void type
     Void,
+    /// The Integer type
     Integer,
+    /// The Float type
     Float,
+    /// The Bool type
     Bool,
+    /// The Str type
     Str,
+    /// The Array type
     Array(Box<Type>),
+    /// The Tuple type
     Tuple(Vec<Type>),
 }
 
 impl Type {
+    /// Returns true if the current type may be checked for a truthy value (inside a if or a while)
     pub fn may_truthy(&self) -> bool {
         use self::Type::*;
 
@@ -26,6 +40,7 @@ impl Type {
         }
     }
 
+    /// Returns true if the current type is convertible to a given type
     pub fn is_convertible_to(&self, dest: &Type) -> bool {
         use self::Type::*;
 
@@ -113,24 +128,37 @@ impl fmt::Debug for Type {
     }
 }
 
+/// A Value (...)
 #[derive(Debug,Clone,PartialEq)]
 pub enum Value {
+    /// The Void value
     Void,
+    /// The Integer value
     Integer(i64),
+    /// The Float value
     Float(f64),
+    /// The Bool value
     Bool(bool),
+    /// The Str value
     Str(String),
+    /// The Array value
     Array {
+        /// The type of this array's elements
         element_type: Type,
+        /// The value of this array's elements
         values: Vec<Value>,
     },
+    /// The Tuple value
     Tuple {
+        /// The types of this tuple's elements
         element_types: Vec<Type>,
+        /// The value of this tuple's elements
         values: Vec<Value>,
     },
 }
 
 impl Value {
+    /// Returns true if the current value is truthy (inside a if or a while)
     pub fn truthy(&self) -> bool {
         use self::Value::*;
 
@@ -142,6 +170,7 @@ impl Value {
         }
     }
 
+    /// Get the type of the current value
     pub fn get_type(&self) -> Type {
         use self::Value::*;
 
@@ -156,6 +185,9 @@ impl Value {
         }
     }
 
+    /// Convert the current value to another type
+    ///
+    /// Consumes the value.
     pub fn into(self, dest: &Type) -> Self {
         use self::Value::*;
 
@@ -307,16 +339,23 @@ impl fmt::Display for Value {
     }
 }
 
+/// A trait that tells if a given generic type match with a concrete type
 pub trait Match {
     fn match_with(&self, given_type: &Type, types: &HashMap<&str, Generic>) -> bool;
 }
 
+/// A generic type
 #[derive(Debug,Clone,PartialEq,Eq,Hash)]
 pub enum Generic {
+    /// The concrete type variant
     Builtin(Type),
+    /// An abstract type (for parametric types like Arrays or Tuples)
     Abstract(AbstractType),
+    /// An sum type (also called variant)
     Sum(SumType),
+    /// An named type (see the [`env`](../env/index.html) module)
     Named(String),
+    /// Any type
     Any,
 }
 
@@ -347,9 +386,16 @@ impl From<Type> for Generic {
     }
 }
 
+/// An abstract type
+///
+/// Used to allow Arrays and Tuples to have [`Generic`](enum.Generic.html) types inside them.
 #[derive(Debug,Clone,PartialEq,Eq,Hash)]
 pub enum AbstractType {
+    /// The Array variant
     Array(Box<Generic>),
+    /// The Tuple variant
+    ///
+    /// Very imperfect and very not used: this does not allow a variadic number of types
     Tuple(Box<Generic>),
 }
 
@@ -371,8 +417,10 @@ impl Match for AbstractType {
     }
 }
 
+/// A sum type (also called variant)
 #[derive(Debug,Clone,PartialEq,Eq,Hash)]
 pub struct SumType {
+    /// The possible variants
     pub possibilities: Vec<Generic>,
 }
 
@@ -385,6 +433,12 @@ impl Match for SumType {
     }
 }
 
+/// Unescape a string
+///
+/// This will evaluate escape sequence and return the given string, unescaped.
+///
+/// If an escape sequence is misused, this function will return an error with the name of the
+/// misused escape sequence.
 pub fn unescape_str(input: &str) -> Result<String, char> {
     let mut res = String::with_capacity(input.len());
 

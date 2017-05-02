@@ -1,3 +1,5 @@
+//! Where all the errors are defined
+
 use ast::{Declaration, Span};
 use type_sys::{Generic, Type};
 
@@ -10,6 +12,10 @@ use std::fmt;
 use std::error::Error;
 use std::io::{stderr, Write};
 
+/// Print an error given a filename, the original input and the error.
+///
+/// This is the function that output nicely formatted inputs, mainly using the `Error` and `Hint`
+/// traits.
 pub fn print_error<T>(filename: &str, input: &str, err: &T)
     where T: Error + Hint
 {
@@ -32,6 +38,7 @@ pub fn print_error<T>(filename: &str, input: &str, err: &T)
     }
 }
 
+/// Print a list of hints (see the [`Hint`](trait.Hint.html) trait).
 pub fn print_hints(input: &str, hint: &Hinter) {
     let mut t = term::stderr().unwrap();
 
@@ -62,6 +69,12 @@ pub fn print_hints(input: &str, hint: &Hinter) {
     t.reset().unwrap();
 }
 
+// Extract the offset line-wise and the line itself number given a position
+//
+// This is not perfect: it should be given the start and end positions, and extract multiple lines
+// if needed.
+//
+// Also, the line number is not calculated (it should be).
 fn extract_line(input: &str, pos: usize) -> (usize, &str) {
     let mut start = pos;
     let mut end = pos;
@@ -87,18 +100,28 @@ fn extract_line(input: &str, pos: usize) -> (usize, &str) {
     (start, &input[start..end])
 }
 
+/// A struct representing an error hint
 pub struct Hinter {
+    /// The type of hint
     pub type_: HinterType,
+    /// The location of the hint in the user code
     pub span: Span,
+    /// The message of the hint
     pub message: String,
 }
 
+/// The type of hint
 pub enum HinterType {
+    /// An error (duh)
     Error,
+    /// A warning (duh)
     Warning,
+    /// An info message (duh)
     Info,
 }
 
+/// The trait that must be implemented by errors to be able to output nicely formatted error
+/// messages.
 pub trait Hint {
     fn hints(&self) -> Vec<Hinter>;
 }

@@ -188,7 +188,7 @@ UnaryOp: UnaryOpCode = {
 //== Rest ==
 //==========
 
-pub Factor: Box<Expr> = {
+Factor: Box<Expr> = {
     Variable,
     Array<Expression>,
     Tuple<Expression>,
