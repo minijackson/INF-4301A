@@ -12,7 +12,7 @@ run: release
 	cargo build
 
 check: cargo
-	cargo test --bin inf_4301a
+	cargo test
 
 doc: cargo
 	cargo doc
