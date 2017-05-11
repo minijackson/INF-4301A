@@ -8,6 +8,7 @@
 //! [`lalrpop`]: https://github.com/nikomatsakis/lalrpop/
 //! [`ast`]: ../ast/index.html
 
+#[allow(clippy)]
 mod parser;
 #[cfg(test)]
 mod tests;

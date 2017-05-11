@@ -21,7 +21,7 @@ impl Print for Expr {
             Grouping(ref exprs) => {
                 let mut fmt_exprs = exprs.pretty_print(indent + 2);
 
-                if exprs.exprs.len() == 0 {
+                if exprs.exprs.is_empty() {
                     return "()".to_string();
                 } else if exprs.exprs.len() == 1 {
                     // Add a comma for single expr grouping

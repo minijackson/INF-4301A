@@ -113,7 +113,7 @@ impl fmt::Debug for Type {
             Tuple(ref types) => {
                 write!(f, "Tuple(")?;
 
-                if types.len() > 0 {
+                if !types.is_empty() {
 
                     write!(f, "{:?}", types[0])?;
 
@@ -165,7 +165,7 @@ impl Value {
         match *self {
             Integer(0) | Float(0f64) | Bool(false) => false,
             Integer(_) | Float(_) | Bool(true) => true,
-            Array { ref values, .. } => values.len() != 0,
+            Array { ref values, .. } => !values.is_empty(),
             _ => panic!("Invalid value truthy-checked"),
         }
     }
@@ -305,7 +305,6 @@ impl PartialOrd for Value {
         use self::Value::*;
 
         match (self, other) {
-            (&Void, &Void) => None,
             (&Integer(lhs), &Integer(rhs)) => lhs.partial_cmp(&rhs),
             (&Float(lhs), &Float(rhs)) => lhs.partial_cmp(&rhs),
             (&Bool(lhs), &Bool(rhs)) => lhs.partial_cmp(&rhs),
@@ -320,11 +319,12 @@ impl PartialOrd for Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Value::*;
+        use std::f64::EPSILON;
 
         match *self {
             Integer(ref value) => write!(f, "{}", value),
             Float(ref value) => {
-                if value.floor() == *value {
+                if (value.floor() - *value).abs() < EPSILON {
                     write!(f, "{}.", value)
                 } else {
                     write!(f, "{}", value)
@@ -369,7 +369,7 @@ impl Match for Generic {
             Abstract(ref abstr) => abstr.match_with(given_type, types),
             Sum(ref sum) => sum.match_with(given_type, types),
             Named(ref name) => {
-                if let Some(ref candidate) = types.get(name.as_str()) {
+                if let Some(candidate) = types.get(name.as_str()) {
                     candidate.match_with(given_type, types)
                 } else {
                     false
@@ -428,8 +428,7 @@ impl Match for SumType {
     fn match_with(&self, given_type: &Type, types: &HashMap<&str, Generic>) -> bool {
         self.possibilities
             .iter()
-            .find(|&candidate| candidate.match_with(given_type, types))
-            .is_some()
+            .any(|candidate| candidate.match_with(given_type, types))
     }
 }
 

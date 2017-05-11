@@ -78,7 +78,7 @@ pub fn do_the_thing(mut exprs: ast::Exprs, mut bindings: &mut Environment<ValueI
 
 /// Parse several expresssions (comma separated) given a corpus.
 ///
-/// Mainly used to convert a lalrpop error to a ParseError
+/// Mainly used to convert a lalrpop error to a `ParseError`
 pub fn parse_expressions(partial_input: &str) -> Result<ast::Exprs, ParseError> {
     match parser::parse_Expressions(partial_input) {
         Ok(exprs) => Ok(exprs),

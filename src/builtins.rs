@@ -89,7 +89,12 @@ define_cmp_operator!(>,  greater);
 define_cmp_operator!(>=, greater_eq);
 
 pub fn equal(args: &[Value]) -> Value {
-    Bool(args[0] == args[1])
+    use std::f64::EPSILON;
+
+    match (&args[0], &args[1]) {
+        (&Float(lhs), &Float(rhs)) => Bool((lhs - rhs).abs() < EPSILON),
+        (lhs, rhs) => Bool(lhs == rhs),
+    }
 }
 
 pub fn not_equal(args: &[Value]) -> Value {

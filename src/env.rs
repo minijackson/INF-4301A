@@ -392,7 +392,7 @@ impl<T> Environment<T> {
         (self.builtins
              .get_mut(name)
              .expect("No such function")
-             .call)(&args)
+             .call)(args)
     }
 
     /// Get a given generic type by its name

@@ -690,7 +690,7 @@ impl Hint for UntypedEmptyArrayError {
         vec![Hinter {
                  type_: HinterType::Error,
                  span: self.span,
-                 message: format!("Add a type before this array"),
+                 message: "Add a type before this array".to_string(),
              }]
     }
 }
@@ -739,7 +739,7 @@ impl Hint for InconsistentArrayTypingError {
                      Hinter {
                          type_: HinterType::Info,
                          span,
-                         message: format!("The element type was declared here"),
+                         message: "The element type was declared here".to_string(),
                      }
                  }
                  ArrayTypeDecl::FirstElem(span) => {
@@ -886,8 +886,7 @@ impl Hint for UserParseError {
         vec![Hinter {
                  type_: HinterType::Error,
                  span: match *self {
-                     IntegerOverflow { span } => span,
-                     InvalidStringEscapeSequence { span, .. } => span,
+                     IntegerOverflow { span } | InvalidStringEscapeSequence { span, .. } => span,
                  },
                  message: "inputted here".to_string(),
              }]
